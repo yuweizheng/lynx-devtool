@@ -3,13 +3,14 @@
 // LICENSE file in the root directory of this source tree.
 
 import Anthropic from '@anthropic-ai/sdk';
+import axios, { AxiosError } from 'axios';
 import { MCPClientManager } from './mcp-client-manager';
 
 export interface AIConfig {
   apiKey?: string;
   model?: string;
   baseURL?: string;
-  provider?: 'anthropic' | 'openai' | 'custom';
+  provider?: 'anthropic' | 'openai' | 'custom' | 'ark';
 }
 
 export interface ChatMessage {
@@ -30,8 +31,8 @@ export interface SendMessageOptions {
 
 export class AIService {
   private config: AIConfig = {
-    model: 'claude-3-5-sonnet-20241022',
-    provider: 'anthropic'
+    baseURL: 'https://ark-cn-beijing.bytedance.net/api/v3',
+    provider: 'ark'
   };
   
   private conversationHistory: ChatMessage[] = [];
@@ -49,6 +50,8 @@ export class AIService {
         apiKey: this.config.apiKey,
         baseURL: this.config.baseURL
       });
+    } else {
+      this.anthropicClient = undefined;
     }
   }
 
@@ -66,7 +69,7 @@ export class AIService {
   }
 
   async sendMessage(message: string, options?: SendMessageOptions): Promise<ChatMessage> {
-    if (!this.anthropicClient) {
+    if (this.config.provider === 'anthropic' && !this.anthropicClient) {
       throw new Error('AI client not configured. Please set API key first.');
     }
 
@@ -83,6 +86,10 @@ export class AIService {
     };
 
     this.conversationHistory.push(userMessage);
+
+    if (this.config.provider === 'ark') {
+      return await this.sendMessageArk(options);
+    }
 
     try {
       // Prepare system message with debug context if provided
@@ -117,7 +124,7 @@ export class AIService {
       }
 
       // Send to AI
-      const response = await this.anthropicClient.messages.create({
+      const response = await this.anthropicClient!.messages.create({
         model: this.config.model!,
         max_tokens: 4000,
         system: systemMessage,
@@ -143,12 +150,205 @@ export class AIService {
     }
   }
 
+  private async sendMessageArk(options?: SendMessageOptions): Promise<ChatMessage> {
+    if (!this.config.apiKey) {
+      throw new Error('AI client not configured. Please set API key first.');
+    }
+    if (!this.config.model) {
+      throw new Error('Ark model not configured. Please set model to your <ENDPOINT_ID>.');
+    }
+
+    let systemMessage = this.getSystemPrompt();
+    if (options?.context) {
+      systemMessage += `\n\nCurrent Debug Context:\n${JSON.stringify(options.context, null, 2)}`;
+    }
+
+    const urlBase = (this.config.baseURL?.replace(/\/+$/, '') || 'https://ark-cn-beijing.bytedance.net/api/v3');
+    const url = `${urlBase}/responses`;
+
+    const availableTools = await this.mcpClientManager.listTools();
+    const arkTools = availableTools.map(t => ({
+      type: 'function',
+      name: t.name,
+      description: t.description,
+      parameters: t.inputSchema
+    }));
+
+    const input = [
+      { type: 'message', role: 'system', content: systemMessage },
+      ...this.conversationHistory
+        .filter(msg => msg.role !== 'system')
+        .map(msg => ({ type: 'message', role: msg.role, content: msg.content }))
+    ];
+
+    const payload = {
+      model: this.config.model!,
+      store: true,
+      input,
+      tools: arkTools
+    };
+
+    try {
+      const resp = await axios.post(url, payload, {
+        headers: {
+          Authorization: `Bearer ${this.config.apiKey}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      const data = resp.data;
+      let text = '';
+      if (Array.isArray(data?.output) && data.output.length > 0) {
+        const firstAssistant = data.output.find((i: any) => i?.type === 'message' && i?.role === 'assistant');
+        const first = firstAssistant || data.output[0];
+        text = first?.content || '';
+      } else if (data?.choices?.[0]?.message?.content) {
+        text = data.choices[0].message.content;
+      } else if (typeof data?.message?.content === 'string') {
+        text = data.message.content;
+      } else if (typeof data?.result === 'string') {
+        text = data.result;
+      } else {
+        text = 'No response';
+      }
+      const toolCalls: Array<{ name: string; arguments: any }> = [];
+      if (Array.isArray((data as any)?.tool_calls)) {
+        for (const tc of (data as any).tool_calls) {
+          if (tc?.name) {
+            toolCalls.push({ name: tc.name, arguments: tc.arguments ?? {} });
+          }
+        }
+      }
+      if (Array.isArray((data as any)?.output)) {
+        for (const item of (data as any).output) {
+          if (item?.type === 'tool_call' && item?.name) {
+            toolCalls.push({ name: item.name, arguments: item.arguments ?? {} });
+          } else if (item?.type === 'function_call' && item?.name) {
+            toolCalls.push({ name: item.name, arguments: item.arguments ?? {} });
+          }
+        }
+      }
+      if (toolCalls.length === 0 && typeof text === 'string') {
+        const inferred = this.extractToolCallsFromText(text, availableTools);
+        if (inferred.length > 0) {
+          toolCalls.push(...inferred);
+        }
+      }
+      if (toolCalls.length > 0) {
+        const availableToolsExec = availableTools;
+        const executedResults: Array<{ toolName: string; serverId: string; result: any }> = [];
+        for (const call of toolCalls) {
+          const toolDef = availableToolsExec.find(t => t.name === call.name);
+          if (!toolDef) {
+            continue;
+          }
+          try {
+            const r = await this.mcpClientManager.callTool(toolDef.serverId, toolDef.name, call.arguments ?? {});
+            executedResults.push({ toolName: toolDef.name, serverId: toolDef.serverId, result: r });
+          } catch {
+          }
+        }
+        if (executedResults.length > 0) {
+          const resultsText = executedResults.map(r => `Tool ${r.toolName}: ${JSON.stringify(r.result)}`).join('\n\n');
+          const followupInput = [
+            { type: 'message', role: 'system', content: `${systemMessage}\n\nTool Results:\n${resultsText}` },
+            ...this.conversationHistory
+              .filter(msg => msg.role !== 'system')
+              .map(msg => ({ type: 'message', role: msg.role, content: msg.content }))
+          ];
+          const followupPayload = {
+            model: this.config.model!,
+            store: true,
+            input: followupInput,
+            tools: arkTools
+          };
+          const followResp = await axios.post(url, followupPayload, {
+            headers: {
+              Authorization: `Bearer ${this.config.apiKey}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          const followData = followResp.data;
+          if (Array.isArray(followData?.output) && followData.output.length > 0) {
+            const firstAssistant2 = followData.output.find((i: any) => i?.type === 'message' && i?.role === 'assistant');
+            const first2 = firstAssistant2 || followData.output[0];
+            text = first2?.content || text;
+          } else if (followData?.choices?.[0]?.message?.content) {
+            text = followData.choices[0].message.content;
+          } else if (typeof followData?.message?.content === 'string') {
+            text = followData.message.content;
+          } else if (typeof followData?.result === 'string') {
+            text = followData.result;
+          }
+        }
+      }
+      const assistantMessage: ChatMessage = {
+        id: this.generateMessageId(),
+        role: 'assistant',
+        content: text,
+        timestamp: new Date(),
+        metadata: {
+          mcpToolsUsed: availableTools.map(t => t.name)
+        }
+      };
+      this.conversationHistory.push(assistantMessage);
+      return assistantMessage;
+    } catch (err) {
+      const axiosErr = err as AxiosError<any>;
+      if (axiosErr?.response?.data?.error?.message) {
+        throw new Error(axiosErr.response.data.error.message);
+      }
+      if (err instanceof Error) {
+        throw new Error(`Ark request failed: ${err.message}`);
+      }
+      throw new Error('Ark request failed: Unknown error');
+    }
+  }
+
   async getConversationHistory(): Promise<ChatMessage[]> {
     return [...this.conversationHistory];
   }
 
   async clearConversation(): Promise<void> {
     this.conversationHistory = [];
+  }
+
+  private extractToolCallsFromText(text: string, availableTools: any[]): Array<{ name: string; arguments: any }> {
+    const calls: Array<{ name: string; arguments: any }> = [];
+    const lower = text.toLowerCase();
+    for (const tool of availableTools) {
+      if (!tool?.name) {
+        continue;
+      }
+      const name = String(tool.name);
+      if (!lower.includes(name.toLowerCase())) {
+        continue;
+      }
+      const args: any = {};
+      const schema = tool.inputSchema || {};
+      const props = schema && typeof schema === 'object' && schema.properties && typeof schema.properties === 'object'
+        ? Object.keys(schema.properties)
+        : [];
+      for (const p of props) {
+        let val: string | undefined;
+        const reJson = new RegExp(`"${p}"\\s*:\\s*"([^"]+)"`, 'i');
+        const m1 = text.match(reJson);
+        if (m1 && m1[1]) {
+          val = m1[1];
+        }
+        if (!val) {
+          const rePlain = new RegExp(`${p}\\s*[:=]\\s*["']?([^"'\n]+)["']?`, 'i');
+          const m2 = text.match(rePlain);
+          if (m2 && m2[1]) {
+            val = m2[1];
+          }
+        }
+        if (val !== undefined) {
+          args[p] = val;
+        }
+      }
+      calls.push({ name, arguments: args });
+    }
+    return calls;
   }
 
   private async handleMCPTools(toolNames: string[], message: string): Promise<any[]> {

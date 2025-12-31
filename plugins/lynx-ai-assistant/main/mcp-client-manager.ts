@@ -43,6 +43,18 @@ export class MCPClientManager {
       name: 'Brave Search MCP',
       command: 'npx',
       args: ['-y', '@modelcontextprotocol/server-brave-search']
+    },
+    {
+      id: 'lynxbase-mcp',
+      name: 'Lynx Base MCP',
+      command: 'npx',
+      args: ['-y', '--registry', 'https://bnpm.byted.org', '@byted-lynx/lynx-base-mcp-server@latest']
+    },
+    {
+      id: 'lynx-devtool',
+      name: 'Lynx Devtool MCP',
+      command: 'npx',
+      args: ['-y', '--registry', 'https://bnpm.byted.org', '@byted-lynx/devtool-mcp-server@latest']
     }
   ];
 
@@ -198,7 +210,7 @@ export class MCPClientManager {
         try {
           const result = await server.client.listTools();
           if (result.tools) {
-            tools.push(...result.tools.map(tool => ({
+            tools.push(...result.tools.map((tool: any) => ({
               ...tool,
               serverId: server.id
             })));
