@@ -152,6 +152,56 @@ export const AIAssistantView: React.FC<AIAssistantViewProps> = ({ context }) => 
     scrollToBottom();
   }, [messages]);
 
+  const stateRef = useRef({ includeDebugContext, selectedMCPTools, isLoading });
+  useEffect(() => {
+      stateRef.current = { includeDebugContext, selectedMCPTools, isLoading };
+  }, [includeDebugContext, selectedMCPTools, isLoading]);
+
+  useEffect(() => {
+    const handleMessage = async (event: MessageEvent) => {
+      if (event.data && event.data.type === 'lynx-ai-analysis-request') {
+        const { includeDebugContext, selectedMCPTools, isLoading } = stateRef.current;
+        if (isLoading) {
+            antMessage.warning('AI is busy processing another request');
+            return;
+        }
+
+        const { message, stackTrace } = event.data.content;
+        let prompt = `Please analyze the following error:\n${message}\n`;
+        if (stackTrace) {
+           prompt += `\nStack Trace:\n${JSON.stringify(stackTrace, null, 2)}`;
+        }
+        
+        setActiveTab('chat');
+        setIsLoading(true);
+        
+        try {
+            const newMessage: ChatMessage = {
+                id: Date.now().toString(),
+                role: 'user',
+                content: prompt,
+                timestamp: new Date()
+            };
+            setMessages(prev => [...prev, newMessage]);
+
+            await asyncBridge.sendMessage(prompt, {
+                includeDebugContext,
+                mcpTools: selectedMCPTools
+            });
+            const history = await asyncBridge.getConversationHistory();
+            setMessages(history);
+        } catch (error) {
+             console.error('Failed to analyze error:', error);
+             antMessage.error('Failed to analyze error');
+        } finally {
+             setIsLoading(false);
+        }
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [asyncBridge]);
+
   useEffect(() => {
     loadInitialData();
   }, []);
@@ -170,7 +220,7 @@ export const AIAssistantView: React.FC<AIAssistantViewProps> = ({ context }) => 
       setMCPTools(toolsData);
       setContextSources(sourcesData);
       setMessages(historyData);
-      setHasApiKey(!!aiConfig.apiKey && aiConfig.apiKey !== '***');
+      setHasApiKey(!!aiConfig.apiKey);
     } catch (error) {
       console.error('Failed to load initial data:', error);
       antMessage.error('Failed to initialize AI Assistant');
@@ -356,15 +406,23 @@ export const AIAssistantView: React.FC<AIAssistantViewProps> = ({ context }) => 
 
   const saveAIConfig = async (values: any) => {
     try {
-      await asyncBridge.updateAIConfig({
-        apiKey: values.apiKey,
-        model: values.model,
-        baseURL: values.baseURL
-      });
+      const patch: any = {};
+      if (typeof values.apiKey === 'string' && values.apiKey.trim()) {
+        patch.apiKey = values.apiKey.trim();
+      }
+      if (typeof values.model === 'string' && values.model.trim()) {
+        patch.model = values.model.trim();
+      }
+      if (typeof values.baseURL === 'string' && values.baseURL.trim()) {
+        patch.baseURL = values.baseURL.trim();
+      }
+
+      await asyncBridge.updateAIConfig(patch);
       
       antMessage.success('AI configuration saved successfully');
       setConfigModalVisible(false);
-      setHasApiKey(!!values.apiKey);
+      const nextConfig = await asyncBridge.getAIConfig();
+      setHasApiKey(!!nextConfig.apiKey);
     } catch (error) {
       console.error('Failed to save AI config:', error);
       antMessage.error('Failed to save AI configuration');

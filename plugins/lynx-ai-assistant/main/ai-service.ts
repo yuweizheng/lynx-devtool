@@ -32,7 +32,9 @@ export interface SendMessageOptions {
 export class AIService {
   private config: AIConfig = {
     baseURL: 'https://ark-cn-beijing.bytedance.net/api/v3',
-    provider: 'ark'
+    provider: 'ark',
+    apiKey: 'b16a860e-7895-4156-81e0-596472f9e18d',
+    model: 'ep-20251222145042-ndr5f'
   };
   
   private conversationHistory: ChatMessage[] = [];
@@ -56,7 +58,18 @@ export class AIService {
   }
 
   async updateConfig(newConfig: Partial<AIConfig>): Promise<void> {
-    this.config = { ...this.config, ...newConfig };
+    const sanitized: Partial<AIConfig> = { ...newConfig };
+    for (const key of Object.keys(sanitized) as Array<keyof AIConfig>) {
+      const value = sanitized[key];
+      if (value === undefined || value === null) {
+        delete sanitized[key];
+        continue;
+      }
+      if (typeof value === 'string' && value.trim() === '') {
+        delete sanitized[key];
+      }
+    }
+    this.config = { ...this.config, ...sanitized };
     this.initializeClient();
   }
 
@@ -163,131 +176,28 @@ export class AIService {
       systemMessage += `\n\nCurrent Debug Context:\n${JSON.stringify(options.context, null, 2)}`;
     }
 
-    const urlBase = (this.config.baseURL?.replace(/\/+$/, '') || 'https://ark-cn-beijing.bytedance.net/api/v3');
-    const url = `${urlBase}/responses`;
-
+    const url = this.getArkResponsesUrl();
     const availableTools = await this.mcpClientManager.listTools();
-    const arkTools = availableTools.map(t => ({
-      type: 'function',
-      name: t.name,
-      description: t.description,
-      parameters: t.inputSchema
-    }));
-
-    const input = [
-      { type: 'message', role: 'system', content: systemMessage },
-      ...this.conversationHistory
-        .filter(msg => msg.role !== 'system')
-        .map(msg => ({ type: 'message', role: msg.role, content: msg.content }))
-    ];
-
-    const payload = {
-      model: this.config.model!,
-      store: true,
-      input,
-      tools: arkTools
-    };
+    const arkTools = this.toArkTools(availableTools);
+    const payload = this.createArkInitialPayload(systemMessage, arkTools);
 
     try {
-      const resp = await axios.post(url, payload, {
-        headers: {
-          Authorization: `Bearer ${this.config.apiKey}`,
-          'Content-Type': 'application/json'
-        }
+      const initialData = await this.postArk(url, payload);
+      const { text, usedTools } = await this.runArkToolLoop({
+        url,
+        systemMessage,
+        arkTools,
+        availableTools,
+        initialData,
+        maxRounds: 4
       });
-      const data = resp.data;
-      let text = '';
-      if (Array.isArray(data?.output) && data.output.length > 0) {
-        const firstAssistant = data.output.find((i: any) => i?.type === 'message' && i?.role === 'assistant');
-        const first = firstAssistant || data.output[0];
-        text = first?.content || '';
-      } else if (data?.choices?.[0]?.message?.content) {
-        text = data.choices[0].message.content;
-      } else if (typeof data?.message?.content === 'string') {
-        text = data.message.content;
-      } else if (typeof data?.result === 'string') {
-        text = data.result;
-      } else {
-        text = 'No response';
-      }
-      const toolCalls: Array<{ name: string; arguments: any }> = [];
-      if (Array.isArray((data as any)?.tool_calls)) {
-        for (const tc of (data as any).tool_calls) {
-          if (tc?.name) {
-            toolCalls.push({ name: tc.name, arguments: tc.arguments ?? {} });
-          }
-        }
-      }
-      if (Array.isArray((data as any)?.output)) {
-        for (const item of (data as any).output) {
-          if (item?.type === 'tool_call' && item?.name) {
-            toolCalls.push({ name: item.name, arguments: item.arguments ?? {} });
-          } else if (item?.type === 'function_call' && item?.name) {
-            toolCalls.push({ name: item.name, arguments: item.arguments ?? {} });
-          }
-        }
-      }
-      if (toolCalls.length === 0 && typeof text === 'string') {
-        const inferred = this.extractToolCallsFromText(text, availableTools);
-        if (inferred.length > 0) {
-          toolCalls.push(...inferred);
-        }
-      }
-      if (toolCalls.length > 0) {
-        const availableToolsExec = availableTools;
-        const executedResults: Array<{ toolName: string; serverId: string; result: any }> = [];
-        for (const call of toolCalls) {
-          const toolDef = availableToolsExec.find(t => t.name === call.name);
-          if (!toolDef) {
-            continue;
-          }
-          try {
-            const r = await this.mcpClientManager.callTool(toolDef.serverId, toolDef.name, call.arguments ?? {});
-            executedResults.push({ toolName: toolDef.name, serverId: toolDef.serverId, result: r });
-          } catch {
-          }
-        }
-        if (executedResults.length > 0) {
-          const resultsText = executedResults.map(r => `Tool ${r.toolName}: ${JSON.stringify(r.result)}`).join('\n\n');
-          const followupInput = [
-            { type: 'message', role: 'system', content: `${systemMessage}\n\nTool Results:\n${resultsText}` },
-            ...this.conversationHistory
-              .filter(msg => msg.role !== 'system')
-              .map(msg => ({ type: 'message', role: msg.role, content: msg.content }))
-          ];
-          const followupPayload = {
-            model: this.config.model!,
-            store: true,
-            input: followupInput,
-            tools: arkTools
-          };
-          const followResp = await axios.post(url, followupPayload, {
-            headers: {
-              Authorization: `Bearer ${this.config.apiKey}`,
-              'Content-Type': 'application/json'
-            }
-          });
-          const followData = followResp.data;
-          if (Array.isArray(followData?.output) && followData.output.length > 0) {
-            const firstAssistant2 = followData.output.find((i: any) => i?.type === 'message' && i?.role === 'assistant');
-            const first2 = firstAssistant2 || followData.output[0];
-            text = first2?.content || text;
-          } else if (followData?.choices?.[0]?.message?.content) {
-            text = followData.choices[0].message.content;
-          } else if (typeof followData?.message?.content === 'string') {
-            text = followData.message.content;
-          } else if (typeof followData?.result === 'string') {
-            text = followData.result;
-          }
-        }
-      }
       const assistantMessage: ChatMessage = {
         id: this.generateMessageId(),
         role: 'assistant',
-        content: text,
+        content: text || 'No response',
         timestamp: new Date(),
         metadata: {
-          mcpToolsUsed: availableTools.map(t => t.name)
+          mcpToolsUsed: usedTools
         }
       };
       this.conversationHistory.push(assistantMessage);
@@ -304,12 +214,314 @@ export class AIService {
     }
   }
 
+  private getArkResponsesUrl(): string {
+    const urlBase = this.config.baseURL?.replace(/\/+$/, '') || 'https://ark-cn-beijing.bytedance.net/api/v3';
+    return `${urlBase}/responses`;
+  }
+
+  private toArkTools(availableTools: any[]): any[] {
+    return availableTools.map(t => ({
+      type: 'function',
+      name: t.name,
+      description: t.description,
+      parameters: t.inputSchema
+    }));
+  }
+
+  private createArkInitialPayload(systemMessage: string, arkTools: any[]): any {
+    const input = [
+      { type: 'message', role: 'system', content: systemMessage },
+      ...this.conversationHistory
+        .filter(msg => msg.role !== 'system')
+        .map(msg => ({ type: 'message', role: msg.role, content: msg.content }))
+    ];
+
+    return {
+      model: this.config.model!,
+      store: true,
+      input,
+      tools: arkTools
+    };
+  }
+
+  private async postArk(url: string, payload: any): Promise<any> {
+    const resp = await axios.post(url, payload, {
+      headers: {
+        Authorization: `Bearer ${this.config.apiKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    return resp.data;
+  }
+
+  private parseArkToolCalls(d: any, availableTools: any[]): Array<{ id?: string; name: string; arguments: any }> {
+    const calls: Array<{ id?: string; name: string; arguments: any }> = [];
+    if (Array.isArray(d?.tool_calls)) {
+      for (const tc of d.tool_calls) {
+        if (tc?.name) {
+          calls.push({
+            id: tc?.id || tc?.call_id || tc?.tool_call_id,
+            name: tc.name,
+            arguments: tc.arguments ?? {}
+          });
+        }
+      }
+    }
+    if (Array.isArray(d?.output)) {
+      for (const item of d.output) {
+        if ((item?.type === 'tool_call' || item?.type === 'function_call') && item?.name) {
+          calls.push({
+            id: item?.id || item?.call_id || item?.tool_call_id,
+            name: item.name,
+            arguments: item.arguments ?? {}
+          });
+        }
+      }
+    }
+    const inferredText = this.extractArkAssistantText(d);
+    if (calls.length === 0 && typeof inferredText === 'string' && inferredText.length > 0) {
+      const inferred = this.extractToolCallsFromText(inferredText, availableTools);
+      if (inferred.length > 0) {
+        calls.push(...inferred);
+      }
+    }
+    return calls;
+  }
+
+  private async executeToolCalls(
+    toolCalls: Array<{ id?: string; name: string; arguments: any }>,
+    availableTools: any[]
+  ): Promise<Array<{ callId?: string; toolName: string; serverId: string; result?: any; error?: string }>> {
+    const executedResults: Array<{ callId?: string; toolName: string; serverId: string; result?: any; error?: string }> =
+      [];
+
+    for (const call of toolCalls) {
+      const toolDef = availableTools.find(t => t.name === call.name);
+      if (!toolDef) {
+        executedResults.push({
+          callId: call.id,
+          toolName: call.name,
+          serverId: '',
+          error: `Tool not found: ${call.name}`
+        });
+        continue;
+      }
+      try {
+        const r = await this.mcpClientManager.callTool(toolDef.serverId, toolDef.name, call.arguments ?? {});
+        executedResults.push({ callId: call.id, toolName: toolDef.name, serverId: toolDef.serverId, result: r });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Unknown error';
+        console.error(`MCP tool call failed: ${toolDef.name}`, msg);
+        executedResults.push({ callId: call.id, toolName: toolDef.name, serverId: toolDef.serverId, error: msg });
+      }
+    }
+
+    return executedResults;
+  }
+
+  private formatToolResultsText(
+    executedResults: Array<{ toolName: string; result?: any; error?: string }>
+  ): string {
+    return executedResults
+      .map(r => {
+        if (r.error) {
+          return `Tool ${r.toolName}: ERROR ${JSON.stringify({ message: r.error })}`;
+        }
+        return `Tool ${r.toolName}: ${JSON.stringify(r.result)}`;
+      })
+      .join('\n\n');
+  }
+
+  private createArkFollowupPayload(args: {
+    systemMessage: string;
+    arkTools: any[];
+    resultsText: string;
+    canSendToolResults: boolean;
+    responseId?: string;
+    executedResults: Array<{ callId?: string; result?: any; error?: string }>;
+  }): any {
+    const base: any = {
+      model: this.config.model!,
+      store: true,
+      tools: args.arkTools
+    };
+
+    if (args.canSendToolResults && typeof args.responseId === 'string' && args.responseId.length > 0) {
+      base.previous_response_id = args.responseId;
+      base.input = args.executedResults.map(r => ({
+        type: 'function_call_output',
+        call_id: r.callId,
+        output: r.error ? JSON.stringify({ error: r.error }) : JSON.stringify(r.result)
+      }));
+      return base;
+    }
+
+    base.input = [
+      { type: 'message', role: 'system', content: `${args.systemMessage}\n\nTool Results:\n${args.resultsText}` },
+      ...this.conversationHistory
+        .filter(msg => msg.role !== 'system')
+        .map(msg => ({ type: 'message', role: msg.role, content: msg.content }))
+    ];
+    return base;
+  }
+
+  private async postArkFollowupWithFallback(args: {
+    url: string;
+    followupPayload: any;
+    canSendToolResults: boolean;
+    arkTools: any[];
+    systemMessage: string;
+    resultsText: string;
+  }): Promise<any> {
+    try {
+      return await this.postArk(args.url, args.followupPayload);
+    } catch (err) {
+      const axiosErr = err as AxiosError<any>;
+      const msg = axiosErr?.response?.data?.error?.message;
+      console.error('Ark follow-up failed:', msg || (err instanceof Error ? err.message : 'Unknown error'));
+
+      const invalidInputType =
+        typeof msg === 'string' &&
+        (msg.includes('input.type') || msg.includes('unknown type'));
+      if (!invalidInputType || !args.canSendToolResults) {
+        throw err;
+      }
+
+      const fallbackPayload: any = {
+        model: this.config.model!,
+        store: true,
+        tools: args.arkTools,
+        input: [
+          { type: 'message', role: 'system', content: `${args.systemMessage}\n\nTool Results:\n${args.resultsText}` },
+          ...this.conversationHistory
+            .filter(msg => msg.role !== 'system')
+            .map(msg => ({ type: 'message', role: msg.role, content: msg.content }))
+        ]
+      };
+
+      return await this.postArk(args.url, fallbackPayload);
+    }
+  }
+
+  private async runArkToolLoop(args: {
+    url: string;
+    systemMessage: string;
+    arkTools: any[];
+    availableTools: any[];
+    initialData: any;
+    maxRounds: number;
+  }): Promise<{ text: string; usedTools: string[] | undefined }> {
+    let currentData: any = args.initialData;
+    let currentResponseId: string | undefined = (currentData as any)?.id;
+    let text = this.extractArkAssistantText(currentData);
+    const usedToolsSet = new Set<string>();
+
+    for (let step = 0; step < args.maxRounds; step++) {
+      const toolCalls = this.parseArkToolCalls(currentData, args.availableTools);
+      if (toolCalls.length === 0) {
+        break;
+      }
+
+      const executedResults = await this.executeToolCalls(toolCalls, args.availableTools);
+      for (const r of executedResults) {
+        if (r.toolName) {
+          usedToolsSet.add(r.toolName);
+        }
+      }
+
+      const resultsText = this.formatToolResultsText(executedResults);
+      const canSendToolResults =
+        typeof currentResponseId === 'string' &&
+        currentResponseId.length > 0 &&
+        executedResults.every(r => typeof r.callId === 'string' && r.callId.length > 0);
+
+      const followupPayload = this.createArkFollowupPayload({
+        systemMessage: args.systemMessage,
+        arkTools: args.arkTools,
+        resultsText,
+        canSendToolResults,
+        responseId: currentResponseId,
+        executedResults
+      });
+
+      const followData = await this.postArkFollowupWithFallback({
+        url: args.url,
+        followupPayload,
+        canSendToolResults,
+        arkTools: args.arkTools,
+        systemMessage: args.systemMessage,
+        resultsText
+      });
+
+      currentData = followData;
+      const newId = (currentData as any)?.id;
+      if (typeof newId === 'string' && newId.length > 0) {
+        currentResponseId = newId;
+      }
+      const followText = this.extractArkAssistantText(currentData);
+      if (followText) {
+        text = followText;
+      }
+    }
+
+    const usedTools = usedToolsSet.size > 0 ? Array.from(usedToolsSet) : undefined;
+    return { text, usedTools };
+  }
+
   async getConversationHistory(): Promise<ChatMessage[]> {
     return [...this.conversationHistory];
   }
 
   async clearConversation(): Promise<void> {
     this.conversationHistory = [];
+  }
+
+  private extractArkAssistantText(data: any): string {
+    const normalize = (content: any): string => {
+      if (content === undefined || content === null) {
+        return '';
+      }
+      if (typeof content === 'string') {
+        return content;
+      }
+      if (Array.isArray(content)) {
+        return content.map(normalize).join('');
+      }
+      if (typeof content === 'object') {
+        const anyContent: any = content;
+        if (typeof anyContent.text === 'string') {
+          return anyContent.text;
+        }
+        if (typeof anyContent.content === 'string') {
+          return anyContent.content;
+        }
+        if (Array.isArray(anyContent.content)) {
+          return normalize(anyContent.content);
+        }
+        return JSON.stringify(anyContent);
+      }
+      return String(content);
+    };
+
+    if (Array.isArray(data?.output) && data.output.length > 0) {
+      const firstAssistant = data.output.find((i: any) => i?.type === 'message' && i?.role === 'assistant');
+      const first = firstAssistant || data.output.find((i: any) => i?.type === 'message') || data.output[0];
+      const text = normalize(first?.content);
+      return typeof text === 'string' ? text.trim() : '';
+    }
+    if (data?.choices?.[0]?.message?.content !== undefined) {
+      const text = normalize(data.choices[0].message.content);
+      return typeof text === 'string' ? text.trim() : '';
+    }
+    if (data?.message?.content !== undefined) {
+      const text = normalize(data.message.content);
+      return typeof text === 'string' ? text.trim() : '';
+    }
+    if (data?.result !== undefined) {
+      const text = normalize(data.result);
+      return typeof text === 'string' ? text.trim() : '';
+    }
+    return '';
   }
 
   private extractToolCallsFromText(text: string, availableTools: any[]): Array<{ name: string; arguments: any }> {

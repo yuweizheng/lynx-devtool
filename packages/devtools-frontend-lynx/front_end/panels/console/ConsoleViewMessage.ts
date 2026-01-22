@@ -1254,6 +1254,26 @@ export class ConsoleViewMessage implements ConsoleViewportElement {
     if (this._messageLevelIcon) {
       contentElement.appendChild(this._messageLevelIcon);
     }
+
+    if (this._message.level === Protocol.Log.LogEntryLevel.Error) {
+      const aiIcon = UI.Icon.Icon.create('smallicon-user-command', 'console-ai-icon');
+      aiIcon.style.setProperty('margin-right', '6px');
+      aiIcon.style.setProperty('cursor', 'pointer');
+      UI.Tooltip.Tooltip.install(aiIcon, 'Ask AI to analyze this error');
+      aiIcon.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const content = {
+            message: this.text,
+            stackTrace: this._message.stackTrace
+        };
+        window.parent.postMessage({
+            type: 'lynx-ai-analysis-request',
+            content
+        }, '*');
+      });
+      contentElement.appendChild(aiIcon);
+    }
+
     this._contentElement = contentElement;
 
     const runtimeModel = this._message.runtimeModel();

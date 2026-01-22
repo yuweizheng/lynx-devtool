@@ -232,9 +232,53 @@ export class MCPClientManager {
     }
 
     try {
+      let normalizedArgs: any = arguments_;
+      if (normalizedArgs === undefined || normalizedArgs === null) {
+        normalizedArgs = {};
+      } else if (typeof normalizedArgs === 'string') {
+        const trimmed = normalizedArgs.trim();
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+            normalizedArgs = parsed;
+          } else if (Array.isArray(parsed)) {
+            normalizedArgs = { items: parsed };
+          } else {
+            normalizedArgs = { value: parsed };
+          }
+        } catch {
+          normalizedArgs = { query: trimmed };
+        }
+      } else if (Array.isArray(normalizedArgs)) {
+        normalizedArgs = { items: normalizedArgs };
+      } else if (typeof normalizedArgs !== 'object') {
+        normalizedArgs = { value: normalizedArgs };
+      } else {
+        const keys = Object.keys(normalizedArgs);
+        if (
+          keys.length === 1 &&
+          keys[0] === 'arguments' &&
+          typeof (normalizedArgs as any).arguments === 'string'
+        ) {
+          const inner = String((normalizedArgs as any).arguments).trim();
+          try {
+            const parsed = JSON.parse(inner);
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+              normalizedArgs = parsed;
+            } else if (Array.isArray(parsed)) {
+              normalizedArgs = { items: parsed };
+            } else {
+              normalizedArgs = { value: parsed };
+            }
+          } catch {
+            normalizedArgs = { query: inner };
+          }
+        }
+      }
+
       const result = await serverInfo.client.callTool({
         name: toolName,
-        arguments: arguments_
+        arguments: normalizedArgs
       });
 
       return result;
