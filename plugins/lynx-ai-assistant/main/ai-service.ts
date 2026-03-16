@@ -5,6 +5,8 @@
 import Anthropic from '@anthropic-ai/sdk';
 import axios, { AxiosError } from 'axios';
 import { MCPClientManager } from './mcp-client-manager';
+import * as fs from 'fs';
+import * as path from 'path';
 
 export interface AIConfig {
   apiKey?: string;
@@ -40,10 +42,31 @@ export class AIService {
   private conversationHistory: ChatMessage[] = [];
   private anthropicClient?: Anthropic;
   private mcpClientManager: MCPClientManager;
+  private cdpExecutor?: (method: string, params: any) => Promise<any>;
+  private cdpTools: any[] = [];
 
-  constructor(mcpClientManager: MCPClientManager) {
+  constructor(mcpClientManager: MCPClientManager, cdpExecutor?: (method: string, params: any) => Promise<any>) {
     this.mcpClientManager = mcpClientManager;
+    this.cdpExecutor = cdpExecutor;
+    this.cdpTools = this.loadCDPTools();
     this.initializeClient();
+  }
+
+  private loadCDPTools(): any[] {
+    try {
+      const toolsPath = path.join(__dirname, '../resources/cdp-tools.json');
+      if (fs.existsSync(toolsPath)) {
+        const content = fs.readFileSync(toolsPath, 'utf-8');
+        const tools = JSON.parse(content);
+        return tools.map((t: any) => ({
+          ...t,
+          inputSchema: t.input_schema || t.inputSchema
+        }));
+      }
+    } catch (e) {
+      console.error('Failed to load CDP tools:', e);
+    }
+    return [];
   }
 
   private initializeClient() {
@@ -177,7 +200,8 @@ export class AIService {
     }
 
     const url = this.getArkResponsesUrl();
-    const availableTools = await this.mcpClientManager.listTools();
+    const mcpTools = await this.mcpClientManager.listTools();
+    const availableTools = [...mcpTools, ...this.cdpTools];
     const arkTools = this.toArkTools(availableTools);
     const payload = this.createArkInitialPayload(systemMessage, arkTools);
 
@@ -296,6 +320,30 @@ export class AIService {
       [];
 
     for (const call of toolCalls) {
+      // Check if it's a CDP tool
+      const cdpTool = this.cdpTools.find(t => t.name === call.name);
+      if (cdpTool) {
+        try {
+          // CDP tool name is "Domain_method", convert to "Domain.method"
+          const method = cdpTool.name.replace('_', '.');
+          const result = await this.cdpExecutor?.(method, call.arguments);
+          executedResults.push({
+            callId: call.id,
+            toolName: call.name,
+            serverId: 'internal-cdp',
+            result
+          });
+        } catch (e: any) {
+          executedResults.push({
+            callId: call.id,
+            toolName: call.name,
+            serverId: 'internal-cdp',
+            error: e.message
+          });
+        }
+        continue;
+      }
+
       const toolDef = availableTools.find(t => t.name === call.name);
       if (!toolDef) {
         executedResults.push({

@@ -76,7 +76,12 @@ export default definePlugin<AIAssistantBridgeType>({
     
     // Initialize services
     mcpClientManager = new MCPClientManager();
-    aiService = new AIService(mcpClientManager);
+    aiService = new AIService(mcpClientManager, async (method, params) => {
+      return context.invokePluginEvent({
+        eventName: 'EXECUTE_CDP_COMMAND',
+        params: { method, params }
+      });
+    });
     debugContextCollector = new DebugContextCollector(context);
 
     // Set up auto-context collection
@@ -90,7 +95,12 @@ export default definePlugin<AIAssistantBridgeType>({
     debugContextCollector?.stopAutoCollection();
     
     mcpClientManager = new MCPClientManager();
-    aiService = new AIService(mcpClientManager);
+    aiService = new AIService(mcpClientManager, async (method, params) => {
+      return context.invokePluginEvent({
+        eventName: 'EXECUTE_CDP_COMMAND',
+        params: { method, params }
+      });
+    });
     debugContextCollector = new DebugContextCollector(context);
     
     debugContextCollector.startAutoCollection();

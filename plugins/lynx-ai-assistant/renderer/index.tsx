@@ -8,6 +8,21 @@ import { AIAssistantBridgeType } from '../bridge';
 import { AIAssistantView } from './components/AIAssistantView';
 
 export default definePlugin<AIAssistantBridgeType>((context) => {
+  // Add listener for CDP commands from Main
+  context.addPluginEventListener('EXECUTE_CDP_COMMAND', async (event) => {
+    const { method, params } = event.params;
+    try {
+      const result = await context.debugDriver.sendCustomMessageAsync({
+        type: 'CDP',
+        params: { method, params }
+      });
+      return result;
+    } catch (error) {
+      console.error('[AI Assistant] CDP Command Failed:', error);
+      throw error;
+    }
+  });
+
   const Index: React.FC = () => {
     return <AIAssistantView context={context} />;
   };
