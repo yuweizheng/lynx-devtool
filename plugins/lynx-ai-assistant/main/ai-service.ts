@@ -649,7 +649,12 @@ export class AIService {
     }
 
     // Get available tools: MCP tools + builtin tools (no CDP tools for static analysis)
-    const mcpTools = await this.mcpClientManager.listTools();
+    let mcpTools: any[] = [];
+    try {
+      mcpTools = await this.mcpClientManager.listTools();
+    } catch (e) {
+      console.warn('Failed to list MCP tools for Console Insight:', e);
+    }
     const availableTools = [...mcpTools, ...this.builtinTools];
     const arkTools = this.toArkTools(availableTools);
 
@@ -824,30 +829,162 @@ When referencing source code, mention the file path and line number.`;
     }
 
     const url = this.getArkResponsesUrl();
-    const payload = {
+
+    // Filter out tools with empty or invalid schemas to avoid Ark API validation errors
+    const validTools = args.arkTools.filter(t => t && t.name && typeof t.name === 'string');
+
+    const payload: any = {
       model: this.config.model,
-      store: false,
+      store: true,
       input: [
         { type: 'message', role: 'system', content: args.systemMessage },
         { type: 'message', role: 'user', content: args.userMessage }
-      ],
-      tools: args.arkTools
+      ]
     };
 
-    const initialData = await this.postArk(url, payload);
-    const { text } = await this.runArkToolLoop({
-      url,
-      systemMessage: args.systemMessage,
-      arkTools: args.arkTools,
-      availableTools: args.availableTools,
-      initialData,
-      maxRounds: 3
-    });
+    // Only include tools if there are valid ones
+    if (validTools.length > 0) {
+      payload.tools = validTools;
+    }
 
-    return {
-      requestId: args.requestId,
-      insight: text || 'Unable to analyze this error.'
-    };
+    try {
+      const initialData = await this.postArk(url, payload);
+
+      // If tools were included, run the tool loop
+      if (validTools.length > 0) {
+        // Use a self-contained tool loop that doesn't reference this.conversationHistory
+        const { text } = await this.runInsightToolLoop({
+          url,
+          systemMessage: args.systemMessage,
+          userMessage: args.userMessage,
+          arkTools: validTools,
+          availableTools: args.availableTools,
+          initialData,
+          maxRounds: 3
+        });
+        return {
+          requestId: args.requestId,
+          insight: text || 'Unable to analyze this error.'
+        };
+      }
+
+      // No tools - just extract text from initial response
+      const text = this.extractArkAssistantText(initialData);
+      return {
+        requestId: args.requestId,
+        insight: text || 'Unable to analyze this error.'
+      };
+    } catch (err) {
+      const axiosErr = err as AxiosError<any>;
+      const errMsg = axiosErr?.response?.data?.error?.message || (err instanceof Error ? err.message : 'Unknown error');
+      console.error('Ark Console Insight request failed:', errMsg, 'Status:', axiosErr?.response?.status);
+
+      // Retry without tools if the error might be tool-related
+      if (axiosErr?.response?.status === 400 && validTools.length > 0) {
+        console.warn('Retrying without tools...');
+        const retryPayload = {
+          model: this.config.model,
+          store: true,
+          input: [
+            { type: 'message', role: 'system', content: args.systemMessage },
+            { type: 'message', role: 'user', content: args.userMessage }
+          ]
+        };
+        const retryData = await this.postArk(url, retryPayload);
+        const text = this.extractArkAssistantText(retryData);
+        return {
+          requestId: args.requestId,
+          insight: text || 'Unable to analyze this error.'
+        };
+      }
+
+      throw new Error(`Ark analysis failed: ${errMsg}`);
+    }
+  }
+
+  private async runInsightToolLoop(args: {
+    url: string;
+    systemMessage: string;
+    userMessage: string;
+    arkTools: any[];
+    availableTools: any[];
+    initialData: any;
+    maxRounds: number;
+  }): Promise<{ text: string }> {
+    let currentData: any = args.initialData;
+    let currentResponseId: string | undefined = (currentData as any)?.id;
+    let text = this.extractArkAssistantText(currentData);
+
+    for (let step = 0; step < args.maxRounds; step++) {
+      const toolCalls = this.parseArkToolCalls(currentData, args.availableTools);
+      if (toolCalls.length === 0) {
+        break;
+      }
+
+      const executedResults = await this.executeToolCalls(toolCalls, args.availableTools);
+      const resultsText = this.formatToolResultsText(executedResults);
+      const canSendToolResults =
+        typeof currentResponseId === 'string' &&
+        currentResponseId.length > 0 &&
+        executedResults.every(r => typeof r.callId === 'string' && r.callId.length > 0);
+
+      let followupPayload: any;
+      if (canSendToolResults) {
+        followupPayload = {
+          model: this.config.model!,
+          store: true,
+          tools: args.arkTools,
+          previous_response_id: currentResponseId,
+          input: executedResults.map(r => ({
+            type: 'function_call_output',
+            call_id: r.callId,
+            output: r.error ? JSON.stringify({ error: r.error }) : JSON.stringify(r.result)
+          }))
+        };
+      } else {
+        // Fallback: include full context (self-contained, no conversationHistory reference)
+        followupPayload = {
+          model: this.config.model!,
+          store: true,
+          tools: args.arkTools,
+          input: [
+            { type: 'message', role: 'system', content: `${args.systemMessage}\n\nTool Results:\n${resultsText}` },
+            { type: 'message', role: 'user', content: args.userMessage }
+          ]
+        };
+      }
+
+      try {
+        currentData = await this.postArk(args.url, followupPayload);
+      } catch (err) {
+        // If followup fails with previous_response_id, retry with full context
+        if (canSendToolResults) {
+          const fallbackPayload = {
+            model: this.config.model!,
+            store: true,
+            tools: args.arkTools,
+            input: [
+              { type: 'message', role: 'system', content: `${args.systemMessage}\n\nTool Results:\n${resultsText}` },
+              { type: 'message', role: 'user', content: args.userMessage }
+            ]
+          };
+          currentData = await this.postArk(args.url, fallbackPayload);
+        } else {
+          throw err;
+        }
+      }
+
+      const newId = (currentData as any)?.id;
+      if (typeof newId === 'string' && newId.length > 0) {
+        currentResponseId = newId;
+      }
+      const followText = this.extractArkAssistantText(currentData);
+      if (followText) {
+        text = followText;
+      }
+    }
+
+    return { text };
   }
 
   async getConversationHistory(): Promise<ChatMessage[]> {
