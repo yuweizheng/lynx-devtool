@@ -91,6 +91,17 @@
   background-position-x: -37px;
 }
 
+.screencast-navigation button.attach-source {
+  background-image: none;
+  width: auto;
+  padding: 2px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+  margin-left: 4px;
+  color: var(--color-text-primary);
+}
+
 .screencast-navigation input {
   display: none;
   flex: 1;

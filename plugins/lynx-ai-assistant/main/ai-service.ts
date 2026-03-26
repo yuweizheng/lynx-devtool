@@ -613,6 +613,7 @@ export class AIService {
     errorMessage: string;
     stackTrace?: any;
     requestId: string;
+    sourceDirectory?: string;
   }): Promise<{ requestId: string; insight: string; sources?: string[] }> {
     // Truncate error message
     let errorMessage = params.errorMessage;
@@ -635,12 +636,30 @@ export class AIService {
       userMessage += `\n\nStack Trace:\n${stackTraceStr}`;
     }
 
+    // Gather source context if a source directory is mounted
+    if (params.sourceDirectory) {
+      const sourceContext = await this.gatherSourceContext(
+        params.errorMessage,
+        params.stackTrace,
+        params.sourceDirectory
+      );
+      if (sourceContext) {
+        userMessage += `\n\nRelevant Source Code (from mounted directory: ${params.sourceDirectory}):\n${sourceContext}`;
+      }
+    }
+
     // Get available tools: MCP tools + builtin tools (no CDP tools for static analysis)
     const mcpTools = await this.mcpClientManager.listTools();
     const availableTools = [...mcpTools, ...this.builtinTools];
     const arkTools = this.toArkTools(availableTools);
 
-    const systemMessage = this.getConsoleInsightSystemPrompt();
+    let systemMessage = this.getConsoleInsightSystemPrompt();
+    if (params.sourceDirectory) {
+      systemMessage += `\n\nThe user has mounted a local source code directory at: ${params.sourceDirectory}
+You can use builtin_read_file and builtin_grep_source tools to examine source files there.
+Supported file types: ts, tsx, js, jsx, css, scss, ttjs, ttml, ttss.
+When referencing source code, mention the file path and line number.`;
+    }
 
     if (this.config.provider === 'ark') {
       return this.analyzeConsoleErrorArk({
@@ -666,6 +685,131 @@ export class AIService {
 
     const insight = response.content[0]?.type === 'text' ? response.content[0].text : 'Unable to analyze this error.';
     return { requestId: params.requestId, insight };
+  }
+
+  private async gatherSourceContext(
+    errorMessage: string,
+    stackTrace: any,
+    sourceDirectory: string
+  ): Promise<string | null> {
+    const ALLOWED_EXTENSIONS = ['ts', 'tsx', 'js', 'jsx', 'css', 'scss', 'ttjs', 'ttml', 'ttss'];
+    const MAX_SOURCE_CONTEXT = 4000;
+    const snippets: string[] = [];
+
+    try {
+      // Extract file references from stack trace
+      const fileRefs = this.extractFileReferences(stackTrace);
+
+      // Try to find matching source files
+      for (const ref of fileRefs.slice(0, 5)) {
+        const baseName = ref.fileName.replace(/^.*[\\/]/, '');
+        const ext = baseName.split('.').pop()?.toLowerCase() || '';
+
+        // Skip non-source files
+        if (!ALLOWED_EXTENSIONS.includes(ext)) continue;
+
+        // Search for the file in the source directory
+        try {
+          const grepResult = await executeBuiltinTool('builtin_grep_source', {
+            pattern: baseName.replace(/\.[^.]+$/, ''),
+            directory: sourceDirectory,
+            fileGlob: `*.{${ALLOWED_EXTENSIONS.join(',')}}`,
+            maxResults: 3
+          });
+
+          if (grepResult.content && grepResult.content !== 'No matches found.') {
+            // Find the actual file path from grep results
+            const lines = grepResult.content.split('\n');
+            for (const line of lines) {
+              const fileMatch = line.match(/^(.+?):\d+:/);
+              if (fileMatch) {
+                const filePath = fileMatch[1];
+                // Read a window around the referenced line
+                const startLine = Math.max(1, (ref.lineNumber || 1) - 5);
+                const endLine = (ref.lineNumber || 1) + 15;
+                const readResult = await executeBuiltinTool('builtin_read_file', {
+                  path: filePath,
+                  startLine,
+                  endLine
+                });
+                if (readResult.content) {
+                  snippets.push(`--- ${filePath} (lines ${startLine}-${endLine}) ---\n${readResult.content}`);
+                }
+                break; // One match per reference is enough
+              }
+            }
+          }
+        } catch {
+          // Skip on error, continue with other files
+        }
+
+        // Check total size
+        if (snippets.join('\n\n').length > MAX_SOURCE_CONTEXT) break;
+      }
+
+      // Also try to grep for error-specific keywords in source
+      if (snippets.length === 0) {
+        // Extract meaningful keywords from the error message (first significant word/phrase)
+        const keywords = errorMessage
+          .replace(/[^a-zA-Z0-9_\s]/g, ' ')
+          .split(/\s+/)
+          .filter(w => w.length > 4 && !/^(error|undefined|null|cannot|failed|unable|unexpected)$/i.test(w))
+          .slice(0, 2);
+
+        for (const keyword of keywords) {
+          try {
+            const grepResult = await executeBuiltinTool('builtin_grep_source', {
+              pattern: keyword,
+              directory: sourceDirectory,
+              fileGlob: `*.{${ALLOWED_EXTENSIONS.join(',')}}`,
+              maxResults: 5
+            });
+            if (grepResult.content && grepResult.content !== 'No matches found.') {
+              snippets.push(`--- Search for "${keyword}" in source ---\n${grepResult.content}`);
+              break;
+            }
+          } catch {
+            // Skip
+          }
+        }
+      }
+
+      if (snippets.length === 0) return null;
+
+      let context = snippets.join('\n\n');
+      if (context.length > MAX_SOURCE_CONTEXT) {
+        context = context.substring(0, MAX_SOURCE_CONTEXT) + '\n... [source context truncated]';
+      }
+      return context;
+    } catch {
+      return null;
+    }
+  }
+
+  private extractFileReferences(stackTrace: any): Array<{ fileName: string; lineNumber?: number }> {
+    const refs: Array<{ fileName: string; lineNumber?: number }> = [];
+    if (!stackTrace) return refs;
+
+    const traceStr = typeof stackTrace === 'string' ? stackTrace : JSON.stringify(stackTrace);
+
+    // Match common stack trace patterns: "at file.ts:42", "file.tsx:42:10", "(file.js:10:5)"
+    const patterns = [
+      /([a-zA-Z0-9_\-/.]+\.[a-zA-Z]+):(\d+)/g,
+      /"url"\s*:\s*"([^"]+)"/g
+    ];
+
+    for (const pattern of patterns) {
+      let match;
+      while ((match = pattern.exec(traceStr)) !== null) {
+        const fileName = match[1];
+        const lineNumber = match[2] ? parseInt(match[2], 10) : undefined;
+        // Skip obviously non-source files
+        if (fileName.includes('node_modules') || fileName.startsWith('http')) continue;
+        refs.push({ fileName, lineNumber });
+      }
+    }
+
+    return refs;
   }
 
   private async analyzeConsoleErrorArk(args: {

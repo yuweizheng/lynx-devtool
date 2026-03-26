@@ -159,16 +159,45 @@ export const AIAssistantView: React.FC<AIAssistantViewProps> = ({ context }) => 
 
   useEffect(() => {
     const handleMessage = async (event: MessageEvent) => {
+      // Handle source directory attach request
+      if (event.data?.type === 'lynx-attach-source-request') {
+        const source = event.source as Window;
+        try {
+          const result = await (window as any).ldtElectronAPI?.invoke('select-directory');
+          const { data } = result || {};
+          if (data && !data.canceled && data.path) {
+            await asyncBridge.setSourceDirectory(data.path);
+            source?.postMessage({
+              type: 'lynx-attach-source-response',
+              content: { path: data.path, canceled: false }
+            }, '*');
+          } else {
+            source?.postMessage({
+              type: 'lynx-attach-source-response',
+              content: { canceled: true }
+            }, '*');
+          }
+        } catch (error) {
+          console.error('Failed to select directory:', error);
+          source?.postMessage({
+            type: 'lynx-attach-source-response',
+            content: { canceled: true }
+          }, '*');
+        }
+        return;
+      }
+
       // Handle Console Insight requests (inline analysis, separate from chat)
       if (event.data?.type === 'lynx-console-insight-request') {
-        const { requestId, errorMessage, stackTrace } = event.data.content;
+        const { requestId, errorMessage, stackTrace, sourceDirectory } = event.data.content;
         const source = event.source as Window;
 
         try {
           const result = await asyncBridge.analyzeConsoleError({
             requestId,
             errorMessage,
-            stackTrace
+            stackTrace,
+            sourceDirectory
           });
           source?.postMessage({
             type: 'lynx-console-insight-response',

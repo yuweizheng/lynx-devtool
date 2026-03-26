@@ -466,6 +466,18 @@ export function isUnderTest(prefs?: {
 }
 
 const IFRAME_SESSIONID = parseInt(new URLSearchParams(location.search).get("sessionId") ?? '0');
+
+// Mounted source directory for AI Console Insights
+let _mountedSourceDirectory: string | null = null;
+
+export const setMountedSourceDirectory = (path: string): void => {
+  _mountedSourceDirectory = path;
+};
+
+export const getMountedSourceDirectory = (): string | null => {
+  return _mountedSourceDirectory;
+};
+
 export const sendWindowMessage = (msg: {
   type: string,
   content?: any;

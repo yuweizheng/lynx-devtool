@@ -11,6 +11,7 @@ let _params: any;
 let mcpClientManager: MCPClientManager;
 let aiService: AIService;
 let debugContextCollector: DebugContextCollector;
+let mountedSourceDirectory: string | null = null;
 
 const bridge = (context: MainContext) => ({
   // MCP Management
@@ -64,11 +65,22 @@ const bridge = (context: MainContext) => ({
     return debugContextCollector.setContextSourceEnabled(source, enabled);
   },
 
+  // Source Code Mounting
+  async setSourceDirectory(path: string) {
+    mountedSourceDirectory = path;
+    return { success: true, path };
+  },
+
+  async getSourceDirectory() {
+    return mountedSourceDirectory;
+  },
+
   // Console Insights - one-shot error analysis
   async analyzeConsoleError(params: {
     errorMessage: string;
     stackTrace?: any;
     requestId: string;
+    sourceDirectory?: string;
   }) {
     // Auto-connect LynxBase MCP if not already connected
     try {
@@ -85,9 +97,10 @@ const bridge = (context: MainContext) => ({
       }
     } catch (e) {
       console.warn('Failed to auto-connect LynxBase MCP:', e);
-      // Continue without MCP - the analysis can still work with builtin tools
     }
-    return aiService.analyzeConsoleError(params);
+    // Use explicitly passed sourceDirectory, or fall back to session-level mounted dir
+    const sourceDir = params.sourceDirectory || mountedSourceDirectory || undefined;
+    return aiService.analyzeConsoleError({ ...params, sourceDirectory: sourceDir });
   },
 
   // AI Configuration

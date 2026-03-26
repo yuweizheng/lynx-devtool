@@ -9,13 +9,15 @@ import SwitchPageModeHandler from './SwitchPageModeHandler';
 import SwitchViewModeHandler from './SwitchViewModeHandler';
 import ReconnectDriverHandler from './ReconnectDriverHandler';
 import ServerHandler from './ServerHandler';
+import SelectDirectoryHandler from './SelectDirectoryHandler';
 
 const handlers: (new () => BaseHandler)[] = [
   RestartLDTHandler,
   SwitchPageModeHandler,
   SwitchViewModeHandler,
   ReconnectDriverHandler,
-  ServerHandler
+  ServerHandler,
+  SelectDirectoryHandler
 ];
 
 function response(code: number, data?: any, msg?: string) {

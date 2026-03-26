@@ -127,6 +127,7 @@ export class ScreencastView extends UI.Widget.VBox implements SDK.OverlayModel.H
   _historyEntries?: Protocol.Page.NavigationEntry[];
   _navigationScreenSwitch?: HTMLInputElement;
   _navigationScreenCastModeSwitch?: HTMLInputElement;
+  _attachSourceBtn?: HTMLButtonElement;
   constructor(screenCaptureModel: SDK.ScreenCaptureModel.ScreenCaptureModel) {
     super();
     this._screenCaptureModel = screenCaptureModel;
@@ -152,6 +153,18 @@ export class ScreencastView extends UI.Widget.VBox implements SDK.OverlayModel.H
   initialize(): void {
     this.element.classList.add('screencast');
     this._createNavigationBar();
+    // Listen for source directory attach responses
+    window.addEventListener('message', (event: MessageEvent) => {
+      if (event.data?.type === 'lynx-attach-source-response') {
+        const { path, canceled } = event.data.content || {};
+        if (!canceled && path && this._attachSourceBtn) {
+          const dirName = path.split('/').pop() || path;
+          this._attachSourceBtn.textContent = `\uD83D\uDCC2 ${dirName}`;
+          this._attachSourceBtn.title = `Source mounted: ${path}`;
+          Host.InspectorFrontendHost.setMountedSourceDirectory(path);
+        }
+      }
+    });
     this._viewportElement = this.element.createChild('div', 'screencast-viewport hidden') as HTMLElement;
     this._canvasContainerElement =
       this._viewportElement.createChild('div', 'screencast-canvas-container') as HTMLElement;
@@ -738,6 +751,12 @@ export class ScreencastView extends UI.Widget.VBox implements SDK.OverlayModel.H
     const screencastModeFullScreen = this._navigationBar.createChild('span', 'title-low');
     screencastModeFullScreen.appendChild(document.createTextNode('FullScreen'));
 
+    // Attach Source Code button
+    this._attachSourceBtn = this._navigationBar.createChild('button', 'attach-source') as HTMLButtonElement;
+    this._attachSourceBtn.textContent = '\uD83D\uDCC1 Attach Source';
+    this._attachSourceBtn.title = 'Mount local source code directory for AI context';
+    this._attachSourceBtn.addEventListener('click', this._handleAttachSource.bind(this), false);
+
     this._navigationUrl = UI.UIUtils.createInput() as HTMLInputElement;
     UI.ARIAUtils.setAccessibleName(this._navigationUrl, i18nString(UIStrings.addressBar));
     this._navigationBar.appendChild(this._navigationUrl);
@@ -791,6 +810,13 @@ export class ScreencastView extends UI.Widget.VBox implements SDK.OverlayModel.H
       }
     });
   }
+  _handleAttachSource(): void {
+    Host.InspectorFrontendHost.sendWindowMessage({
+      type: 'lynx-attach-source-request',
+      content: {}
+    });
+  }
+
   _navigateScreenCastQuality(event: MouseEvent): void {
     const isHD = (event.target as HTMLInputElement).checked ? 'true' : 'false';
     localStorage.setItem('isHD', isHD);
