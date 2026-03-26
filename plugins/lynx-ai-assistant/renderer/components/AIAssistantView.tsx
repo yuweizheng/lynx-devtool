@@ -159,23 +159,52 @@ export const AIAssistantView: React.FC<AIAssistantViewProps> = ({ context }) => 
 
   useEffect(() => {
     const handleMessage = async (event: MessageEvent) => {
-      if (event.data && event.data.type === 'lynx-ai-analysis-request') {
+      if (event.data && (event.data.type === 'lynx-ai-analysis-request' || event.data.type === 'lynx-ai-elements-request')) {
         const { includeDebugContext, selectedMCPTools, isLoading } = stateRef.current;
         if (isLoading) {
             antMessage.warning('AI is busy processing another request');
             return;
         }
 
-        const { message, stackTrace } = event.data.content;
-        let prompt = `Please analyze the following error:\n${message}\n`;
-        if (stackTrace) {
-           prompt += `\nStack Trace:\n${JSON.stringify(stackTrace, null, 2)}`;
+        const clientId = context.debugDriver.getSelectClientId?.();
+        const sessionId = context.debugDriver.getSelectSessionId?.();
+
+        let prompt = '';
+        if (event.data.type === 'lynx-ai-analysis-request') {
+          const { message, stackTrace } = event.data.content;
+          prompt = `Please analyze the following error:\n${message}\n`;
+          if (stackTrace) {
+            prompt += `\nStack Trace:\n${JSON.stringify(stackTrace, null, 2)}`;
+          }
+        } else {
+          const { question, nodeId } = event.data.content;
+          prompt =
+            `You are helping debug styles/layout in Lynx DevTool.\n` +
+            `Selected Node:\n${JSON.stringify({ nodeId }, null, 2)}\n\n` +
+            `User Question:\n${question}\n\n` +
+            `If user asks to change the selected node style to red, you can set inline style via DOM.setAttributeValue (attribute name: "style").\n` +
+            `For diagnosis, use CSS/DOM read tools (matched styles, computed styles, inline styles, stylesheet text) scoped to the selected nodeId.\n` +
+            `Also use Lynx Base MCP tools for Lynx-specific fundamentals (layout, style precedence, runtime behavior, best practices).`;
+        }
+
+        if (clientId !== undefined || sessionId !== undefined) {
+          prompt += `\n\nTarget Context:\n${JSON.stringify({ clientId, sessionId }, null, 2)}`;
         }
         
         setActiveTab('chat');
         setIsLoading(true);
         
         try {
+            if (event.data.type === 'lynx-ai-elements-request') {
+              const r = await asyncBridge.connectMCPServer({
+                name: 'Lynx Base MCP',
+                command: 'npx',
+                args: ['-y', '--registry', 'https://bnpm.byted.org', '@byted-lynx/lynx-base-mcp-server@latest']
+              });
+              if (r && r.success === false && r.error) {
+                antMessage.warning(`Failed to connect Lynx Base MCP: ${r.error}`);
+              }
+            }
             const newMessage: ChatMessage = {
                 id: Date.now().toString(),
                 role: 'user',
@@ -186,7 +215,11 @@ export const AIAssistantView: React.FC<AIAssistantViewProps> = ({ context }) => 
 
             await asyncBridge.sendMessage(prompt, {
                 includeDebugContext,
-                mcpTools: selectedMCPTools
+                mcpTools: selectedMCPTools,
+                target: {
+                  clientId: clientId !== undefined ? String(clientId) : undefined,
+                  sessionId: typeof sessionId === 'number' ? sessionId : undefined
+                }
             });
             const history = await asyncBridge.getConversationHistory();
             setMessages(history);

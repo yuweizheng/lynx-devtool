@@ -1,7 +1,21 @@
 import { defineConfig } from '@rsbuild/core';
 import { pluginBabel } from '@rsbuild/plugin-babel';
 import { RspackVirtualModulePlugin } from 'rspack-plugin-virtual-module';
+import * as path from 'path';
+import * as fs from 'fs';
 import { generateMainVirtualModule } from './scripts/virtualModule';
+
+function copyCdpTools() {
+  const srcPath = path.join(__dirname, 'plugins/lynx-ai-assistant/resources/cdp-tools.json');
+  const destDir = path.join(__dirname, 'dist/resources');
+  const destPath = path.join(destDir, 'cdp-tools.json');
+  
+  fs.mkdirSync(destDir, { recursive: true });
+  fs.copyFileSync(srcPath, destPath);
+  console.log('Copied cdp-tools.json to dist/resources');
+}
+
+copyCdpTools();
 
 export default defineConfig({
   plugins: [

@@ -1,755 +1,626 @@
 [
   {
-    "name": "CSS_addRule",
-    "description": "Inserts a new rule with the given `ruleText` in a stylesheet with given `styleSheetId`, at the\nposition specified by `location`.",
-    "input_schema": {
+    "name": "App_callStaticVoidMethod",
+    "description": "Invoke a static void method in the host application using reflection.",
+    "inputSchema": {
       "type": "object",
       "properties": {
-        "styleSheetId": {
-          "description": "The css style sheet identifier where a new rule should be inserted.",
-          "type": "string"
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
         },
-        "ruleText": {
-          "description": "The text of a new rule.",
-          "type": "string"
+        "className": {
+          "type": "string",
+          "description": "The full path name of the class to reflect"
         },
-        "location": {
-          "description": "Text position of a new rule in the target style sheet.",
-          "type": "object"
+        "methodName": {
+          "type": "string",
+          "description": "The name of the static method to call"
         }
       },
       "required": [
-        "styleSheetId",
-        "ruleText",
-        "location"
+        "clientId",
+        "className",
+        "methodName"
       ]
     }
   },
   {
-    "name": "CSS_collectClassNames",
-    "description": "Returns all class names from specified stylesheet.",
-    "input_schema": {
+    "name": "App_getBOE",
+    "description": "Get the BOE lane information about the client.",
+    "inputSchema": {
       "type": "object",
       "properties": {
-        "styleSheetId": {
-          "type": "string"
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
         }
       },
       "required": [
-        "styleSheetId"
+        "clientId"
       ]
     }
   },
   {
-    "name": "CSS_createStyleSheet",
-    "description": "Creates a new special \"via-inspector\" stylesheet in the frame with given `frameId`.",
-    "input_schema": {
+    "name": "App_getPPE",
+    "description": "Get the PPE lane information about the client.",
+    "inputSchema": {
       "type": "object",
       "properties": {
-        "frameId": {
-          "description": "Identifier of the frame where \"via-inspector\" stylesheet should be created.",
-          "type": "string"
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
         }
       },
       "required": [
-        "frameId"
+        "clientId"
       ]
     }
   },
   {
-    "name": "CSS_disable",
-    "description": "Disables the CSS agent for the given page.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "CSS_enable",
-    "description": "Enables the CSS agent for the given page. Clients should not assume that the CSS agent has been\nenabled until the result of this command is received.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "CSS_forcePseudoState",
-    "description": "Ensures that the given node will have specified pseudo-classes whenever its style is computed by\nthe browser.",
-    "input_schema": {
+    "name": "App_setBOE",
+    "description": "Set the BOE lane of the client.",
+    "inputSchema": {
       "type": "object",
       "properties": {
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
+        },
+        "enable": {
+          "type": "boolean",
+          "description": "Whether to enable BOE."
+        },
+        "lane": {
+          "type": "string",
+          "description": "The BOE lane to be enabled"
+        }
+      },
+      "required": [
+        "clientId",
+        "enable",
+        "lane"
+      ]
+    }
+  },
+  {
+    "name": "App_setPPE",
+    "description": "Set the PPE lane of the client.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
+        },
+        "enable": {
+          "type": "boolean",
+          "description": "Whether to enable PPE."
+        },
+        "lane": {
+          "type": "string",
+          "description": "The PPE lane to be enabled"
+        }
+      },
+      "required": [
+        "clientId",
+        "enable",
+        "lane"
+      ]
+    }
+  },
+  {
+    "name": "App_startAnyMock",
+    "description": "Start the AnyMock (任意门) on the client",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
+        },
         "nodeId": {
-          "description": "The element id for which to force the pseudo state.",
-          "type": "integer"
-        },
-        "forcedPseudoClasses": {
-          "description": "Element pseudo classes to force when computing the element's style.",
-          "type": "array"
+          "type": "number",
+          "description": "Identifier of the node. Unique DOM node identifier."
         }
       },
       "required": [
-        "nodeId",
-        "forcedPseudoClasses"
+        "clientId",
+        "nodeId"
+      ]
+    }
+  },
+  {
+    "name": "App_stopAnyMock",
+    "description": "Stop the AnyMock (任意门) on the client",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
+        }
+      },
+      "required": [
+        "clientId"
       ]
     }
   },
   {
     "name": "CSS_getBackgroundColors",
-    "description": "Execute CSS.getBackgroundColors",
-    "input_schema": {
+    "description": "Returns background color information for the node.",
+    "inputSchema": {
       "type": "object",
       "properties": {
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
+        },
+        "sessionId": {
+          "type": "number",
+          "description": "The sessionId to list sessions. Use `Device_listSessions` to get the ID."
+        },
         "nodeId": {
-          "description": "Id of the node to get background colors for.",
-          "type": "integer"
+          "type": "number",
+          "description": "Identifier of the node. Unique DOM node identifier."
         }
       },
       "required": [
+        "clientId",
+        "sessionId",
         "nodeId"
       ]
     }
   },
   {
     "name": "CSS_getComputedStyleForNode",
-    "description": "Returns the computed style for a DOM node identified by `nodeId`.",
-    "input_schema": {
+    "description": "Returns the computed style for a DOM node identified by nodeId.",
+    "inputSchema": {
       "type": "object",
       "properties": {
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
+        },
+        "sessionId": {
+          "type": "number",
+          "description": "The sessionId to list sessions. Use `Device_listSessions` to get the ID."
+        },
         "nodeId": {
-          "type": "integer"
+          "type": "number",
+          "description": "Identifier of the node. Unique DOM node identifier."
         }
       },
       "required": [
+        "clientId",
+        "sessionId",
         "nodeId"
       ]
     }
   },
   {
     "name": "CSS_getInlineStylesForNode",
-    "description": "Returns the styles defined inline (explicitly in the \"style\" attribute and implicitly, using DOM\nattributes) for a DOM node identified by `nodeId`.",
-    "input_schema": {
+    "description": "Returns inline style and style attribute for the node.",
+    "inputSchema": {
       "type": "object",
       "properties": {
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
+        },
+        "sessionId": {
+          "type": "number",
+          "description": "The sessionId to list sessions. Use `Device_listSessions` to get the ID."
+        },
         "nodeId": {
-          "type": "integer"
+          "type": "number",
+          "description": "Identifier of the node. Unique DOM node identifier."
         }
       },
       "required": [
+        "clientId",
+        "sessionId",
         "nodeId"
       ]
     }
   },
   {
     "name": "CSS_getMatchedStylesForNode",
-    "description": "Returns requested styles for a DOM node identified by `nodeId`.",
-    "input_schema": {
+    "description": "Returns CSS rules matching the specified node. The matchedCSSRules in the result are ordered by priority from high to low. When selectors have the same specificity, rules that appear later (further down) have higher priority.",
+    "inputSchema": {
       "type": "object",
       "properties": {
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
+        },
+        "sessionId": {
+          "type": "number",
+          "description": "The sessionId to list sessions. Use `Device_listSessions` to get the ID."
+        },
         "nodeId": {
-          "type": "integer"
+          "type": "number",
+          "description": "Identifier of the node. Unique DOM node identifier."
         }
       },
       "required": [
-        "nodeId"
-      ]
-    }
-  },
-  {
-    "name": "CSS_getMediaQueries",
-    "description": "Returns all media queries parsed by the rendering engine.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "CSS_getPlatformFontsForNode",
-    "description": "Requests information about platform fonts which we used to render child TextNodes in the given\nnode.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "nodeId": {
-          "type": "integer"
-        }
-      },
-      "required": [
+        "clientId",
+        "sessionId",
         "nodeId"
       ]
     }
   },
   {
     "name": "CSS_getStyleSheetText",
-    "description": "Returns the current textual content for a stylesheet.",
-    "input_schema": {
+    "description": "Returns the text content of the stylesheet.",
+    "inputSchema": {
       "type": "object",
       "properties": {
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
+        },
+        "sessionId": {
+          "type": "number",
+          "description": "The sessionId to list sessions. Use `Device_listSessions` to get the ID."
+        },
         "styleSheetId": {
-          "type": "string"
+          "type": "string",
+          "description": "Style sheet identifier"
         }
       },
       "required": [
+        "clientId",
+        "sessionId",
         "styleSheetId"
       ]
     }
   },
   {
-    "name": "CSS_trackComputedStyleUpdates",
-    "description": "Starts tracking the given computed styles for updates. The specified array of properties\nreplaces the one previously specified. Pass empty array to disable tracking.\nUse takeComputedStyleUpdates to retrieve the list of nodes that had properties modified.\nThe changes to computed style properties are only tracked for nodes pushed to the front-end\nby the DOM agent. If no changes to the tracked properties occur after the node has been pushed\nto the front-end, no updates will be issued for the node.",
-    "input_schema": {
+    "name": "Debugger_getScriptSource",
+    "description": "Get the source code of a script identified by the given script identifier. Use `saveToTmp` if the response is too large.",
+    "inputSchema": {
       "type": "object",
       "properties": {
-        "propertiesToTrack": {
-          "type": "array"
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
+        },
+        "sessionId": {
+          "type": "number",
+          "description": "The sessionId to list sessions. Use `Device_listSessions` to get the ID."
+        },
+        "scriptId": {
+          "type": "string",
+          "description": "Identifier of the script. Use `Debugger_listScripts` to get the script IDs of a session."
+        },
+        "saveToTmp": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether to save the script source to a temporary file if it is large."
         }
       },
       "required": [
-        "propertiesToTrack"
+        "clientId",
+        "sessionId",
+        "scriptId"
       ]
     }
   },
   {
-    "name": "CSS_takeComputedStyleUpdates",
-    "description": "Polls the next batch of computed style updates.",
-    "input_schema": {
+    "name": "Debugger_listScripts",
+    "description": "List all parsed scripts. If no scripts found, it means that the page is opened before the DevTool connected. Use `Page_reload` to reload the page and get the scripts again.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
+        },
+        "sessionId": {
+          "type": "number",
+          "description": "The sessionId to list sessions. Use `Device_listSessions` to get the ID."
+        }
+      },
+      "required": [
+        "clientId",
+        "sessionId"
+      ]
+    }
+  },
+  {
+    "name": "Device_closePage",
+    "description": "Close the current page",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
+        }
+      },
+      "required": [
+        "clientId"
+      ]
+    }
+  },
+  {
+    "name": "Device_listAvailableApps",
+    "description": "List all available apps on all devices.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "deviceId": {
+          "type": "string",
+          "description": "The deviceId. Use the `Device_listDevices` (if available, otherwise use `Device_acquireDevice`) to get ID for a devices."
+        }
+      },
+      "required": [
+        "deviceId"
+      ]
+    }
+  },
+  {
+    "name": "Device_listClients",
+    "description": "List all connected clients. This tool may timeout if no clients are connected or just started. Use `Devices_reconnect` and retry in a few seconds if that happens.",
+    "inputSchema": {
       "type": "object",
       "properties": {},
       "required": []
     }
   },
   {
-    "name": "CSS_setEffectivePropertyValueForNode",
-    "description": "Find a rule with the given active property for the given node and set the new value for this\nproperty",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "nodeId": {
-          "description": "The element id for which to set property.",
-          "type": "integer"
-        },
-        "propertyName": {
-          "type": "string"
-        },
-        "value": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "nodeId",
-        "propertyName",
-        "value"
-      ]
-    }
-  },
-  {
-    "name": "CSS_setKeyframeKey",
-    "description": "Modifies the keyframe rule key text.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "styleSheetId": {
-          "type": "string"
-        },
-        "range": {
-          "type": "object"
-        },
-        "keyText": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "styleSheetId",
-        "range",
-        "keyText"
-      ]
-    }
-  },
-  {
-    "name": "CSS_setMediaText",
-    "description": "Modifies the rule selector.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "styleSheetId": {
-          "type": "string"
-        },
-        "range": {
-          "type": "object"
-        },
-        "text": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "styleSheetId",
-        "range",
-        "text"
-      ]
-    }
-  },
-  {
-    "name": "CSS_setRuleSelector",
-    "description": "Modifies the rule selector.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "styleSheetId": {
-          "type": "string"
-        },
-        "range": {
-          "type": "object"
-        },
-        "selector": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "styleSheetId",
-        "range",
-        "selector"
-      ]
-    }
-  },
-  {
-    "name": "CSS_setStyleSheetText",
-    "description": "Sets the new stylesheet text.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "styleSheetId": {
-          "type": "string"
-        },
-        "text": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "styleSheetId",
-        "text"
-      ]
-    }
-  },
-  {
-    "name": "CSS_setStyleTexts",
-    "description": "Applies specified style edits one after another in the given order.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "edits": {
-          "type": "array"
-        }
-      },
-      "required": [
-        "edits"
-      ]
-    }
-  },
-  {
-    "name": "CSS_startRuleUsageTracking",
-    "description": "Enables the selector recording.",
-    "input_schema": {
+    "name": "Device_listDevices",
+    "description": "List all connected devices.",
+    "inputSchema": {
       "type": "object",
       "properties": {},
       "required": []
     }
   },
   {
-    "name": "CSS_stopRuleUsageTracking",
-    "description": "Stop tracking rule usage and return the list of rules that were used since last call to\n`takeCoverageDelta` (or since start of coverage instrumentation)",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "CSS_takeCoverageDelta",
-    "description": "Obtain list of rules that became used since last call to this method (or since start of coverage\ninstrumentation)",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "CSS_setLocalFontsEnabled",
-    "description": "Enables/disables rendering of local CSS fonts (enabled by default).",
-    "input_schema": {
+    "name": "Device_listSessions",
+    "description": "List all opened sessions",
+    "inputSchema": {
       "type": "object",
       "properties": {
-        "enabled": {
-          "description": "Whether rendering of local fonts is enabled.",
-          "type": "boolean"
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
         }
       },
       "required": [
-        "enabled"
+        "clientId"
       ]
     }
   },
   {
-    "name": "DOM_collectClassNamesFromSubtree",
-    "description": "Collects class names for the node with given id and all of it's child nodes.",
-    "input_schema": {
+    "name": "Device_openApp",
+    "description": "Open an app on the device.",
+    "inputSchema": {
       "type": "object",
       "properties": {
-        "nodeId": {
-          "description": "Id of the node to collect class names.",
-          "type": "integer"
+        "deviceId": {
+          "type": "string",
+          "description": "The deviceId. Use the `Device_listDevices` (if available, otherwise use `Device_acquireDevice`) to get ID for a devices."
+        },
+        "packageName": {
+          "type": "string",
+          "description": "The package name of the app. Get it from the `packageName` field of response of `Device_listAvailableApps`."
+        },
+        "withDataCleared": {
+          "type": "boolean",
+          "description": "Whether to clear app data before opening the app."
         }
       },
       "required": [
-        "nodeId"
+        "deviceId",
+        "packageName"
       ]
     }
   },
   {
-    "name": "DOM_copyTo",
-    "description": "Creates a deep copy of the specified node and places it into the target container before the\ngiven anchor.",
-    "input_schema": {
+    "name": "Device_openPage",
+    "description": "Open a page",
+    "inputSchema": {
       "type": "object",
       "properties": {
-        "nodeId": {
-          "description": "Id of the node to copy.",
-          "type": "integer"
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
         },
-        "targetNodeId": {
-          "description": "Id of the element to drop the copy into.",
-          "type": "integer"
-        },
-        "insertBeforeNodeId": {
-          "description": "Drop the copy before this node (if absent, the copy becomes the last child of\n`targetNodeId`).",
-          "type": "integer"
+        "url": {
+          "type": "string",
+          "description": "The URL of the page"
         }
       },
       "required": [
-        "nodeId",
-        "targetNodeId"
+        "clientId",
+        "url"
       ]
-    }
-  },
-  {
-    "name": "DOM_describeNode",
-    "description": "Describes node given its id, does not require domain to be enabled. Does not start tracking any\nobjects, can be used for automation.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "nodeId": {
-          "description": "Identifier of the node.",
-          "type": "integer"
-        },
-        "backendNodeId": {
-          "description": "Identifier of the backend node.",
-          "type": "integer"
-        },
-        "objectId": {
-          "description": "JavaScript object id of the node wrapper.",
-          "type": "string"
-        },
-        "depth": {
-          "description": "The maximum depth at which children should be retrieved, defaults to 1. Use -1 for the\nentire subtree or provide an integer larger than 0.",
-          "type": "integer"
-        },
-        "pierce": {
-          "description": "Whether or not iframes and shadow roots should be traversed when returning the subtree\n(default is false).",
-          "type": "boolean"
-        }
-      },
-      "required": []
-    }
-  },
-  {
-    "name": "DOM_scrollIntoViewIfNeeded",
-    "description": "Scrolls the specified rect of the given node into view if not already visible.\nNote: exactly one between nodeId, backendNodeId and objectId should be passed\nto identify the node.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "nodeId": {
-          "description": "Identifier of the node.",
-          "type": "integer"
-        },
-        "backendNodeId": {
-          "description": "Identifier of the backend node.",
-          "type": "integer"
-        },
-        "objectId": {
-          "description": "JavaScript object id of the node wrapper.",
-          "type": "string"
-        },
-        "rect": {
-          "description": "The rect to be scrolled into view, relative to the node's border box, in CSS pixels.\nWhen omitted, center of the node will be used, similar to Element.scrollIntoView.",
-          "type": "object"
-        }
-      },
-      "required": []
-    }
-  },
-  {
-    "name": "DOM_disable",
-    "description": "Disables DOM agent for the given page.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "DOM_discardSearchResults",
-    "description": "Discards search results from the session with the given id. `getSearchResults` should no longer\nbe called for that search.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "searchId": {
-          "description": "Unique search session identifier.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "searchId"
-      ]
-    }
-  },
-  {
-    "name": "DOM_enable",
-    "description": "Enables DOM agent for the given page.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "DOM_focus",
-    "description": "Focuses the given element.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "nodeId": {
-          "description": "Identifier of the node.",
-          "type": "integer"
-        },
-        "backendNodeId": {
-          "description": "Identifier of the backend node.",
-          "type": "integer"
-        },
-        "objectId": {
-          "description": "JavaScript object id of the node wrapper.",
-          "type": "string"
-        }
-      },
-      "required": []
     }
   },
   {
     "name": "DOM_getAttributes",
-    "description": "Returns attributes for the specified node.",
-    "input_schema": {
+    "description": "Get all attributes of the specified node.",
+    "inputSchema": {
       "type": "object",
       "properties": {
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
+        },
+        "sessionId": {
+          "type": "number",
+          "description": "The sessionId to list sessions. Use `Device_listSessions` to get the ID."
+        },
         "nodeId": {
-          "description": "Id of the node to retrieve attibutes for.",
-          "type": "integer"
+          "type": "number",
+          "description": "Identifier of the node. Unique DOM node identifier."
         }
       },
       "required": [
+        "clientId",
+        "sessionId",
         "nodeId"
       ]
     }
   },
   {
     "name": "DOM_getBoxModel",
-    "description": "Returns boxes for the given node.",
-    "input_schema": {
+    "description": "Get the box model of an element.",
+    "inputSchema": {
       "type": "object",
       "properties": {
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
+        },
+        "sessionId": {
+          "type": "number",
+          "description": "The sessionId to list sessions. Use `Device_listSessions` to get the ID."
+        },
         "nodeId": {
-          "description": "Identifier of the node.",
-          "type": "integer"
-        },
-        "backendNodeId": {
-          "description": "Identifier of the backend node.",
-          "type": "integer"
-        },
-        "objectId": {
-          "description": "JavaScript object id of the node wrapper.",
-          "type": "string"
+          "type": "number",
+          "description": "Identifier of the node. Unique DOM node identifier."
         }
       },
-      "required": []
-    }
-  },
-  {
-    "name": "DOM_getContentQuads",
-    "description": "Returns quads that describe node position on the page. This method\nmight return multiple quads for inline nodes.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "nodeId": {
-          "description": "Identifier of the node.",
-          "type": "integer"
-        },
-        "backendNodeId": {
-          "description": "Identifier of the backend node.",
-          "type": "integer"
-        },
-        "objectId": {
-          "description": "JavaScript object id of the node wrapper.",
-          "type": "string"
-        }
-      },
-      "required": []
+      "required": [
+        "clientId",
+        "sessionId",
+        "nodeId"
+      ]
     }
   },
   {
     "name": "DOM_getDocument",
-    "description": "Returns the root DOM node (and optionally the subtree) to the caller.",
-    "input_schema": {
+    "description": "Get the document tree of the page.",
+    "inputSchema": {
       "type": "object",
       "properties": {
-        "depth": {
-          "description": "The maximum depth at which children should be retrieved, defaults to 1. Use -1 for the\nentire subtree or provide an integer larger than 0.",
-          "type": "integer"
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
         },
-        "pierce": {
-          "description": "Whether or not iframes and shadow roots should be traversed when returning the subtree\n(default is false).",
-          "type": "boolean"
-        }
-      },
-      "required": []
-    }
-  },
-  {
-    "name": "DOM_getFlattenedDocument",
-    "description": "Returns the root DOM node (and optionally the subtree) to the caller.\nDeprecated, as it is not designed to work well with the rest of the DOM agent.\nUse DOMSnapshot.captureSnapshot instead.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "depth": {
-          "description": "The maximum depth at which children should be retrieved, defaults to 1. Use -1 for the\nentire subtree or provide an integer larger than 0.",
-          "type": "integer"
-        },
-        "pierce": {
-          "description": "Whether or not iframes and shadow roots should be traversed when returning the subtree\n(default is false).",
-          "type": "boolean"
-        }
-      },
-      "required": []
-    }
-  },
-  {
-    "name": "DOM_getNodesForSubtreeByStyle",
-    "description": "Finds nodes with a given computed style in a subtree.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "nodeId": {
-          "description": "Node ID pointing to the root of a subtree.",
-          "type": "integer"
-        },
-        "computedStyles": {
-          "description": "The style to filter nodes by (includes nodes if any of properties matches).",
-          "type": "array"
-        },
-        "pierce": {
-          "description": "Whether or not iframes and shadow roots in the same target should be traversed when returning the\nresults (default is false).",
-          "type": "boolean"
+        "sessionId": {
+          "type": "number",
+          "description": "The sessionId to list sessions. Use `Device_listSessions` to get the ID."
         }
       },
       "required": [
-        "nodeId",
-        "computedStyles"
+        "clientId",
+        "sessionId"
+      ]
+    }
+  },
+  {
+    "name": "DOM_getDocumentWithBoxModel",
+    "description": "Get the document tree of the Lynx page with box model information.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
+        },
+        "sessionId": {
+          "type": "number",
+          "description": "The sessionId to list sessions. Use `Device_listSessions` to get the ID."
+        }
+      },
+      "required": [
+        "clientId",
+        "sessionId"
       ]
     }
   },
   {
     "name": "DOM_getNodeForLocation",
-    "description": "Returns node id at given location. Depending on whether DOM domain is enabled, nodeId is\neither returned or not.",
-    "input_schema": {
+    "description": "Get the node at the specified coordinates.",
+    "inputSchema": {
       "type": "object",
       "properties": {
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
+        },
+        "sessionId": {
+          "type": "number",
+          "description": "The sessionId to list sessions. Use `Device_listSessions` to get the ID."
+        },
         "x": {
-          "description": "X coordinate.",
-          "type": "integer"
+          "type": "number",
+          "description": "X coordinate"
         },
         "y": {
-          "description": "Y coordinate.",
-          "type": "integer"
-        },
-        "includeUserAgentShadowDOM": {
-          "description": "False to skip to the nearest non-UA shadow root ancestor (default: false).",
-          "type": "boolean"
-        },
-        "ignorePointerEventsNone": {
-          "description": "Whether to ignore pointer-events: none on elements and hit test them.",
-          "type": "boolean"
+          "type": "number",
+          "description": "Y coordinate"
         }
       },
       "required": [
+        "clientId",
+        "sessionId",
         "x",
         "y"
       ]
     }
   },
   {
-    "name": "DOM_getOuterHTML",
-    "description": "Returns node's HTML markup.",
-    "input_schema": {
+    "name": "DOM_getOriginalNodeIndex",
+    "description": "Get the original index of the node in its parent.",
+    "inputSchema": {
       "type": "object",
       "properties": {
-        "nodeId": {
-          "description": "Identifier of the node.",
-          "type": "integer"
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
         },
-        "backendNodeId": {
-          "description": "Identifier of the backend node.",
-          "type": "integer"
+        "sessionId": {
+          "type": "number",
+          "description": "The sessionId to list sessions. Use `Device_listSessions` to get the ID."
         },
-        "objectId": {
-          "description": "JavaScript object id of the node wrapper.",
-          "type": "string"
-        }
-      },
-      "required": []
-    }
-  },
-  {
-    "name": "DOM_getRelayoutBoundary",
-    "description": "Returns the id of the nearest ancestor that is a relayout boundary.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
         "nodeId": {
-          "description": "Id of the node.",
-          "type": "integer"
+          "type": "number",
+          "description": "Identifier of the node. Unique DOM node identifier."
         }
       },
       "required": [
+        "clientId",
+        "sessionId",
         "nodeId"
       ]
     }
   },
   {
     "name": "DOM_getSearchResults",
-    "description": "Returns search results from given `fromIndex` to given `toIndex` from the search with the given\nidentifier.",
-    "input_schema": {
+    "description": "Get search results for the specified range.",
+    "inputSchema": {
       "type": "object",
       "properties": {
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
+        },
+        "sessionId": {
+          "type": "number",
+          "description": "The sessionId to list sessions. Use `Device_listSessions` to get the ID."
+        },
         "searchId": {
-          "description": "Unique search session identifier.",
-          "type": "string"
+          "type": "number",
+          "description": "Search identifier"
         },
         "fromIndex": {
-          "description": "Start index of the search result to be returned.",
-          "type": "integer"
+          "type": "number",
+          "description": "Start index for search results"
         },
         "toIndex": {
-          "description": "End index of the search result to be returned.",
-          "type": "integer"
+          "type": "number",
+          "description": "End index for search results"
         }
       },
       "required": [
+        "clientId",
+        "sessionId",
         "searchId",
         "fromIndex",
         "toIndex"
@@ -757,4468 +628,630 @@
     }
   },
   {
-    "name": "DOM_hideHighlight",
-    "description": "Hides any highlight.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "DOM_highlightNode",
-    "description": "Highlights DOM node.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "DOM_highlightRect",
-    "description": "Highlights given rectangle.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "DOM_markUndoableState",
-    "description": "Marks last undoable state.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "DOM_moveTo",
-    "description": "Moves node into the new container, places it before the given anchor.",
-    "input_schema": {
+    "name": "DOM_innerText",
+    "description": "Get the visible text content of the node.",
+    "inputSchema": {
       "type": "object",
       "properties": {
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
+        },
+        "sessionId": {
+          "type": "number",
+          "description": "The sessionId to list sessions. Use `Device_listSessions` to get the ID."
+        },
         "nodeId": {
-          "description": "Id of the node to move.",
-          "type": "integer"
-        },
-        "targetNodeId": {
-          "description": "Id of the element to drop the moved node into.",
-          "type": "integer"
-        },
-        "insertBeforeNodeId": {
-          "description": "Drop node before this one (if absent, the moved node becomes the last child of\n`targetNodeId`).",
-          "type": "integer"
+          "type": "number",
+          "description": "Identifier of the node. Unique DOM node identifier."
         }
       },
       "required": [
-        "nodeId",
-        "targetNodeId"
+        "clientId",
+        "sessionId",
+        "nodeId"
       ]
     }
   },
   {
     "name": "DOM_performSearch",
-    "description": "Searches for a given string in the DOM tree. Use `getSearchResults` to access search results or\n`cancelSearch` to end this search session.",
-    "input_schema": {
+    "description": "Search for nodes in the DOM tree.",
+    "inputSchema": {
       "type": "object",
       "properties": {
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
+        },
+        "sessionId": {
+          "type": "number",
+          "description": "The sessionId to list sessions. Use `Device_listSessions` to get the ID."
+        },
         "query": {
-          "description": "Plain text or query selector or XPath search query.",
-          "type": "string"
+          "type": "string",
+          "description": "Search query string"
         },
         "includeUserAgentShadowDOM": {
-          "description": "True to search in user agent shadow DOM.",
-          "type": "boolean"
+          "type": "boolean",
+          "description": "Whether to include user agent shadow DOM in search"
         }
       },
       "required": [
+        "clientId",
+        "sessionId",
         "query"
       ]
     }
   },
   {
-    "name": "DOM_pushNodeByPathToFrontend",
-    "description": "Requests that the node is sent to the caller given its path. // FIXME, use XPath",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "path": {
-          "description": "Path to node in the proprietary format.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "path"
-      ]
-    }
-  },
-  {
     "name": "DOM_pushNodesByBackendIdsToFrontend",
-    "description": "Requests that a batch of nodes is sent to the caller given their backend node ids.",
-    "input_schema": {
+    "description": "Push backend node IDs to the frontend for inspection.",
+    "inputSchema": {
       "type": "object",
       "properties": {
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
+        },
+        "sessionId": {
+          "type": "number",
+          "description": "The sessionId to list sessions. Use `Device_listSessions` to get the ID."
+        },
         "backendNodeIds": {
-          "description": "The array of backend node ids.",
-          "type": "array"
+          "type": "array",
+          "description": "Array of backend node IDs",
+          "items": {
+            "type": "number"
+          }
         }
       },
       "required": [
+        "clientId",
+        "sessionId",
         "backendNodeIds"
       ]
     }
   },
   {
     "name": "DOM_querySelector",
-    "description": "Executes `querySelector` on a given node.",
-    "input_schema": {
+    "description": "Find the first element matching the CSS selector.",
+    "inputSchema": {
       "type": "object",
       "properties": {
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
+        },
+        "sessionId": {
+          "type": "number",
+          "description": "The sessionId to list sessions. Use `Device_listSessions` to get the ID."
+        },
         "nodeId": {
-          "description": "Id of the node to query upon.",
-          "type": "integer"
+          "type": "number",
+          "description": "Identifier of the node. Unique DOM node identifier. Optional; defaults to root node if omitted."
         },
         "selector": {
-          "description": "Selector string.",
-          "type": "string"
+          "type": "string",
+          "description": "CSS selector string"
         }
       },
       "required": [
-        "nodeId",
+        "clientId",
+        "sessionId",
         "selector"
       ]
     }
   },
   {
     "name": "DOM_querySelectorAll",
-    "description": "Executes `querySelectorAll` on a given node.",
-    "input_schema": {
+    "description": "Find all elements matching the CSS selector.",
+    "inputSchema": {
       "type": "object",
       "properties": {
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
+        },
+        "sessionId": {
+          "type": "number",
+          "description": "The sessionId to list sessions. Use `Device_listSessions` to get the ID."
+        },
         "nodeId": {
-          "description": "Id of the node to query upon.",
-          "type": "integer"
+          "type": "number",
+          "description": "Identifier of the node. Unique DOM node identifier. Optional; defaults to root node if omitted."
         },
         "selector": {
-          "description": "Selector string.",
-          "type": "string"
+          "type": "string",
+          "description": "CSS selector string"
         }
       },
       "required": [
-        "nodeId",
+        "clientId",
+        "sessionId",
         "selector"
       ]
     }
   },
   {
-    "name": "DOM_redo",
-    "description": "Re-does the last undone action.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "DOM_removeAttribute",
-    "description": "Removes attribute with given name from an element with given id.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "nodeId": {
-          "description": "Id of the element to remove attribute from.",
-          "type": "integer"
-        },
-        "name": {
-          "description": "Name of the attribute to remove.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "nodeId",
-        "name"
-      ]
-    }
-  },
-  {
-    "name": "DOM_removeNode",
-    "description": "Removes node with given id.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "nodeId": {
-          "description": "Id of the node to remove.",
-          "type": "integer"
-        }
-      },
-      "required": [
-        "nodeId"
-      ]
-    }
-  },
-  {
     "name": "DOM_requestChildNodes",
-    "description": "Requests that children of the node with given id are returned to the caller in form of\n`setChildNodes` events where not only immediate children are retrieved, but all children down to\nthe specified depth.",
-    "input_schema": {
+    "description": "Request child nodes for a given parent node.",
+    "inputSchema": {
       "type": "object",
       "properties": {
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
+        },
+        "sessionId": {
+          "type": "number",
+          "description": "The sessionId to list sessions. Use `Device_listSessions` to get the ID."
+        },
         "nodeId": {
-          "description": "Id of the node to get children for.",
-          "type": "integer"
+          "type": "number",
+          "description": "Identifier of the node. Unique DOM node identifier."
         },
         "depth": {
-          "description": "The maximum depth at which children should be retrieved, defaults to 1. Use -1 for the\nentire subtree or provide an integer larger than 0.",
-          "type": "integer"
+          "type": "number",
+          "description": "Depth of child nodes to retrieve"
         },
         "pierce": {
-          "description": "Whether or not iframes and shadow roots should be traversed when returning the sub-tree\n(default is false).",
-          "type": "boolean"
+          "type": "boolean",
+          "description": "Whether to pierce through shadow DOM"
         }
       },
       "required": [
+        "clientId",
+        "sessionId",
         "nodeId"
       ]
     }
   },
   {
-    "name": "DOM_requestNode",
-    "description": "Requests that the node is sent to the caller given the JavaScript node object reference. All\nnodes that form the path from the node to the root are also sent to the client as a series of\n`setChildNodes` notifications.",
-    "input_schema": {
+    "name": "DOM_scrollIntoViewIfNeeded",
+    "description": "Scrolls the specified rect of the given node into view if not already visible.",
+    "inputSchema": {
       "type": "object",
       "properties": {
-        "objectId": {
-          "description": "JavaScript object id to convert into node.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "objectId"
-      ]
-    }
-  },
-  {
-    "name": "DOM_resolveNode",
-    "description": "Resolves the JavaScript node object for a given NodeId or BackendNodeId.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "nodeId": {
-          "description": "Id of the node to resolve.",
-          "type": "integer"
-        },
-        "backendNodeId": {
-          "description": "Backend identifier of the node to resolve.",
-          "type": "integer"
-        },
-        "objectGroup": {
-          "description": "Symbolic group name that can be used to release multiple objects.",
-          "type": "string"
-        },
-        "executionContextId": {
-          "description": "Execution context in which to resolve the node.",
-          "type": "integer"
-        }
-      },
-      "required": []
-    }
-  },
-  {
-    "name": "DOM_setAttributeValue",
-    "description": "Sets attribute for an element with given id.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "nodeId": {
-          "description": "Id of the element to set attribute for.",
-          "type": "integer"
-        },
-        "name": {
-          "description": "Attribute name.",
-          "type": "string"
-        },
-        "value": {
-          "description": "Attribute value.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "nodeId",
-        "name",
-        "value"
-      ]
-    }
-  },
-  {
-    "name": "DOM_setAttributesAsText",
-    "description": "Sets attributes on element with given id. This method is useful when user edits some existing\nattribute value and types in several attribute name/value pairs.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "nodeId": {
-          "description": "Id of the element to set attributes for.",
-          "type": "integer"
-        },
-        "text": {
-          "description": "Text with a number of attributes. Will parse this text using HTML parser.",
-          "type": "string"
-        },
-        "name": {
-          "description": "Attribute name to replace with new attributes derived from text in case text parsed\nsuccessfully.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "nodeId",
-        "text"
-      ]
-    }
-  },
-  {
-    "name": "DOM_setFileInputFiles",
-    "description": "Sets files for the given file input element.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "files": {
-          "description": "Array of file paths to set.",
-          "type": "array"
-        },
-        "nodeId": {
-          "description": "Identifier of the node.",
-          "type": "integer"
-        },
-        "backendNodeId": {
-          "description": "Identifier of the backend node.",
-          "type": "integer"
-        },
-        "objectId": {
-          "description": "JavaScript object id of the node wrapper.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "files"
-      ]
-    }
-  },
-  {
-    "name": "DOM_setNodeStackTracesEnabled",
-    "description": "Sets if stack traces should be captured for Nodes. See `Node.getNodeStackTraces`. Default is disabled.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "enable": {
-          "description": "Enable or disable.",
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "enable"
-      ]
-    }
-  },
-  {
-    "name": "DOM_getNodeStackTraces",
-    "description": "Gets stack traces associated with a Node. As of now, only provides stack trace for Node creation.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "nodeId": {
-          "description": "Id of the node to get stack traces for.",
-          "type": "integer"
-        }
-      },
-      "required": [
-        "nodeId"
-      ]
-    }
-  },
-  {
-    "name": "DOM_getFileInfo",
-    "description": "Returns file information for the given\nFile wrapper.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "objectId": {
-          "description": "JavaScript object id of the node wrapper.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "objectId"
-      ]
-    }
-  },
-  {
-    "name": "DOM_setInspectedNode",
-    "description": "Enables console to refer to the node with given id via $x (see Command Line API for more details\n$x functions).",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "nodeId": {
-          "description": "DOM node id to be accessible by means of $x command line API.",
-          "type": "integer"
-        }
-      },
-      "required": [
-        "nodeId"
-      ]
-    }
-  },
-  {
-    "name": "DOM_setNodeName",
-    "description": "Sets node name for a node with given id.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "nodeId": {
-          "description": "Id of the node to set name for.",
-          "type": "integer"
-        },
-        "name": {
-          "description": "New node's name.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "nodeId",
-        "name"
-      ]
-    }
-  },
-  {
-    "name": "DOM_setNodeValue",
-    "description": "Sets node value for a node with given id.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "nodeId": {
-          "description": "Id of the node to set value for.",
-          "type": "integer"
-        },
-        "value": {
-          "description": "New node's value.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "nodeId",
-        "value"
-      ]
-    }
-  },
-  {
-    "name": "DOM_setOuterHTML",
-    "description": "Sets node HTML markup, returns new node id.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "nodeId": {
-          "description": "Id of the node to set markup for.",
-          "type": "integer"
-        },
-        "outerHTML": {
-          "description": "Outer HTML markup to set.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "nodeId",
-        "outerHTML"
-      ]
-    }
-  },
-  {
-    "name": "DOM_undo",
-    "description": "Undoes the last performed action.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "DOM_getFrameOwner",
-    "description": "Returns iframe node that owns iframe with the given domain.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "frameId": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "frameId"
-      ]
-    }
-  },
-  {
-    "name": "Emulation_canEmulate",
-    "description": "Tells whether emulation is supported.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Emulation_clearDeviceMetricsOverride",
-    "description": "Clears the overridden device metrics.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Emulation_clearGeolocationOverride",
-    "description": "Clears the overridden Geolocation Position and Error.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Emulation_resetPageScaleFactor",
-    "description": "Requests that page scale factor is reset to initial values.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Emulation_setFocusEmulationEnabled",
-    "description": "Enables or disables simulating a focused and active page.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "enabled": {
-          "description": "Whether to enable to disable focus emulation.",
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "enabled"
-      ]
-    }
-  },
-  {
-    "name": "Emulation_setCPUThrottlingRate",
-    "description": "Enables CPU throttling to emulate slow CPUs.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "rate": {
-          "description": "Throttling rate as a slowdown factor (1 is no throttle, 2 is 2x slowdown, etc).",
-          "type": "number"
-        }
-      },
-      "required": [
-        "rate"
-      ]
-    }
-  },
-  {
-    "name": "Emulation_setDefaultBackgroundColorOverride",
-    "description": "Sets or clears an override of the default background color of the frame. This override is used\nif the content does not specify one.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "color": {
-          "description": "RGBA of the default background color. If not specified, any existing override will be\ncleared.",
-          "type": "object"
-        }
-      },
-      "required": []
-    }
-  },
-  {
-    "name": "Emulation_setDeviceMetricsOverride",
-    "description": "Overrides the values of device screen dimensions (window.screen.width, window.screen.height,\nwindow.innerWidth, window.innerHeight, and \"device-width\"/\"device-height\"-related CSS media\nquery results).",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "width": {
-          "description": "Overriding width value in pixels (minimum 0, maximum 10000000). 0 disables the override.",
-          "type": "integer"
-        },
-        "height": {
-          "description": "Overriding height value in pixels (minimum 0, maximum 10000000). 0 disables the override.",
-          "type": "integer"
-        },
-        "deviceScaleFactor": {
-          "description": "Overriding device scale factor value. 0 disables the override.",
-          "type": "number"
-        },
-        "mobile": {
-          "description": "Whether to emulate mobile device. This includes viewport meta tag, overlay scrollbars, text\nautosizing and more.",
-          "type": "boolean"
-        },
-        "scale": {
-          "description": "Scale to apply to resulting view image.",
-          "type": "number"
-        },
-        "screenWidth": {
-          "description": "Overriding screen width value in pixels (minimum 0, maximum 10000000).",
-          "type": "integer"
-        },
-        "screenHeight": {
-          "description": "Overriding screen height value in pixels (minimum 0, maximum 10000000).",
-          "type": "integer"
-        },
-        "positionX": {
-          "description": "Overriding view X position on screen in pixels (minimum 0, maximum 10000000).",
-          "type": "integer"
-        },
-        "positionY": {
-          "description": "Overriding view Y position on screen in pixels (minimum 0, maximum 10000000).",
-          "type": "integer"
-        },
-        "dontSetVisibleSize": {
-          "description": "Do not set visible view size, rely upon explicit setVisibleSize call.",
-          "type": "boolean"
-        },
-        "screenOrientation": {
-          "description": "Screen orientation override.",
-          "type": "object"
-        },
-        "viewport": {
-          "description": "If set, the visible area of the page will be overridden to this viewport. This viewport\nchange is not observed by the page, e.g. viewport-relative elements do not change positions.",
-          "type": "object"
-        },
-        "displayFeature": {
-          "description": "If set, the display feature of a multi-segment screen. If not set, multi-segment support\nis turned-off.",
-          "type": "object"
-        }
-      },
-      "required": [
-        "width",
-        "height",
-        "deviceScaleFactor",
-        "mobile"
-      ]
-    }
-  },
-  {
-    "name": "Emulation_setScrollbarsHidden",
-    "description": "Execute Emulation.setScrollbarsHidden",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "hidden": {
-          "description": "Whether scrollbars should be always hidden.",
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "hidden"
-      ]
-    }
-  },
-  {
-    "name": "Emulation_setDocumentCookieDisabled",
-    "description": "Execute Emulation.setDocumentCookieDisabled",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "disabled": {
-          "description": "Whether document.coookie API should be disabled.",
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "disabled"
-      ]
-    }
-  },
-  {
-    "name": "Emulation_setEmitTouchEventsForMouse",
-    "description": "Execute Emulation.setEmitTouchEventsForMouse",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "enabled": {
-          "description": "Whether touch emulation based on mouse input should be enabled.",
-          "type": "boolean"
-        },
-        "configuration": {
-          "description": "Touch/gesture events configuration. Default: current platform.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "enabled"
-      ]
-    }
-  },
-  {
-    "name": "Emulation_setEmulatedMedia",
-    "description": "Emulates the given media type or media feature for CSS media queries.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "media": {
-          "description": "Media type to emulate. Empty string disables the override.",
-          "type": "string"
-        },
-        "features": {
-          "description": "Media features to emulate.",
-          "type": "array"
-        }
-      },
-      "required": []
-    }
-  },
-  {
-    "name": "Emulation_setEmulatedVisionDeficiency",
-    "description": "Emulates the given vision deficiency.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "type": {
-          "description": "Vision deficiency to emulate.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "type"
-      ]
-    }
-  },
-  {
-    "name": "Emulation_setGeolocationOverride",
-    "description": "Overrides the Geolocation Position or Error. Omitting any of the parameters emulates position\nunavailable.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "latitude": {
-          "description": "Mock latitude",
-          "type": "number"
-        },
-        "longitude": {
-          "description": "Mock longitude",
-          "type": "number"
-        },
-        "accuracy": {
-          "description": "Mock accuracy",
-          "type": "number"
-        }
-      },
-      "required": []
-    }
-  },
-  {
-    "name": "Emulation_setIdleOverride",
-    "description": "Overrides the Idle state.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "isUserActive": {
-          "description": "Mock isUserActive",
-          "type": "boolean"
-        },
-        "isScreenUnlocked": {
-          "description": "Mock isScreenUnlocked",
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "isUserActive",
-        "isScreenUnlocked"
-      ]
-    }
-  },
-  {
-    "name": "Emulation_clearIdleOverride",
-    "description": "Clears Idle state overrides.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Emulation_setNavigatorOverrides",
-    "description": "Overrides value returned by the javascript navigator object.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "platform": {
-          "description": "The platform navigator.platform should return.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "platform"
-      ]
-    }
-  },
-  {
-    "name": "Emulation_setPageScaleFactor",
-    "description": "Sets a specified page scale factor.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "pageScaleFactor": {
-          "description": "Page scale factor.",
-          "type": "number"
-        }
-      },
-      "required": [
-        "pageScaleFactor"
-      ]
-    }
-  },
-  {
-    "name": "Emulation_setScriptExecutionDisabled",
-    "description": "Switches script execution in the page.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "value": {
-          "description": "Whether script execution should be disabled in the page.",
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "value"
-      ]
-    }
-  },
-  {
-    "name": "Emulation_setTouchEmulationEnabled",
-    "description": "Enables touch on platforms which do not support them.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "enabled": {
-          "description": "Whether the touch event emulation should be enabled.",
-          "type": "boolean"
-        },
-        "maxTouchPoints": {
-          "description": "Maximum touch points supported. Defaults to one.",
-          "type": "integer"
-        }
-      },
-      "required": [
-        "enabled"
-      ]
-    }
-  },
-  {
-    "name": "Emulation_setVirtualTimePolicy",
-    "description": "Turns on virtual time for all frames (replacing real-time with a synthetic time source) and sets\nthe current virtual time policy.  Note this supersedes any previous time budget.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "policy": {
+        "clientId": {
           "type": "string",
-          "enum": [
-            "advance",
-            "pause",
-            "pauseIfNetworkFetchesPending"
-          ]
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
         },
-        "budget": {
-          "description": "If set, after this many virtual milliseconds have elapsed virtual time will be paused and a\nvirtualTimeBudgetExpired event is sent.",
-          "type": "number"
+        "sessionId": {
+          "type": "number",
+          "description": "The sessionId to list sessions. Use `Device_listSessions` to get the ID."
         },
-        "maxVirtualTimeTaskStarvationCount": {
-          "description": "If set this specifies the maximum number of tasks that can be run before virtual is forced\nforwards to prevent deadlock.",
-          "type": "integer"
+        "nodeId": {
+          "type": "number",
+          "description": "Identifier of the node. Unique DOM node identifier."
         },
-        "waitForNavigation": {
-          "description": "If set the virtual time policy change should be deferred until any frame starts navigating.\nNote any previous deferred policy change is superseded.",
-          "type": "boolean"
-        },
-        "initialVirtualTime": {
-          "description": "If set, base::Time::Now will be overridden to initially return this value.",
-          "type": "number"
+        "rect": {
+          "type": "object",
+          "description": "The rect to be scrolled into view, relative to the node's border box, in CSS pixels. When omitted, center of the node will be used.",
+          "properties": {
+            "x": { "type": "number" },
+            "y": { "type": "number" },
+            "width": { "type": "number" },
+            "height": { "type": "number" }
+          }
         }
       },
       "required": [
-        "policy"
-      ]
-    }
-  },
-  {
-    "name": "Emulation_setLocaleOverride",
-    "description": "Overrides default host system locale with the specified one.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "locale": {
-          "description": "ICU style C locale (e.g. \"en_US\"). If not specified or empty, disables the override and\nrestores default host system locale.",
-          "type": "string"
-        }
-      },
-      "required": []
-    }
-  },
-  {
-    "name": "Emulation_setTimezoneOverride",
-    "description": "Overrides default host system timezone with the specified one.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "timezoneId": {
-          "description": "The timezone identifier. If empty, disables the override and\nrestores default host system timezone.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "timezoneId"
-      ]
-    }
-  },
-  {
-    "name": "Emulation_setVisibleSize",
-    "description": "Resizes the frame/viewport of the page. Note that this does not affect the frame's container\n(e.g. browser window). Can be used to produce screenshots of the specified size. Not supported\non Android.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "width": {
-          "description": "Frame width (DIP).",
-          "type": "integer"
-        },
-        "height": {
-          "description": "Frame height (DIP).",
-          "type": "integer"
-        }
-      },
-      "required": [
-        "width",
-        "height"
-      ]
-    }
-  },
-  {
-    "name": "Emulation_setDisabledImageTypes",
-    "description": "Execute Emulation.setDisabledImageTypes",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "imageTypes": {
-          "description": "Image types to disable.",
-          "type": "array"
-        }
-      },
-      "required": [
-        "imageTypes"
-      ]
-    }
-  },
-  {
-    "name": "Emulation_setUserAgentOverride",
-    "description": "Allows overriding user agent with the given string.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "userAgent": {
-          "description": "User agent to use.",
-          "type": "string"
-        },
-        "acceptLanguage": {
-          "description": "Browser langugage to emulate.",
-          "type": "string"
-        },
-        "platform": {
-          "description": "The platform navigator.platform should return.",
-          "type": "string"
-        },
-        "userAgentMetadata": {
-          "description": "To be sent in Sec-CH-UA-* headers and returned in navigator.userAgentData",
-          "type": "object"
-        }
-      },
-      "required": [
-        "userAgent"
-      ]
-    }
-  },
-  {
-    "name": "Input_dispatchDragEvent",
-    "description": "Dispatches a drag event into the page.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "type": {
-          "description": "Type of the drag event.",
-          "type": "string"
-        },
-        "x": {
-          "description": "X coordinate of the event relative to the main frame's viewport in CSS pixels.",
-          "type": "number"
-        },
-        "y": {
-          "description": "Y coordinate of the event relative to the main frame's viewport in CSS pixels. 0 refers to\nthe top of the viewport and Y increases as it proceeds towards the bottom of the viewport.",
-          "type": "number"
-        },
-        "data": {
-          "type": "object"
-        },
-        "modifiers": {
-          "description": "Bit field representing pressed modifier keys. Alt=1, Ctrl=2, Meta/Command=4, Shift=8\n(default: 0).",
-          "type": "integer"
-        }
-      },
-      "required": [
-        "type",
-        "x",
-        "y",
-        "data"
-      ]
-    }
-  },
-  {
-    "name": "Input_dispatchKeyEvent",
-    "description": "Dispatches a key event to the page.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "type": {
-          "description": "Type of the key event.",
-          "type": "string"
-        },
-        "modifiers": {
-          "description": "Bit field representing pressed modifier keys. Alt=1, Ctrl=2, Meta/Command=4, Shift=8\n(default: 0).",
-          "type": "integer"
-        },
-        "timestamp": {
-          "description": "Time at which the event occurred.",
-          "type": "number"
-        },
-        "text": {
-          "description": "Text as generated by processing a virtual key code with a keyboard layout. Not needed for\nfor `keyUp` and `rawKeyDown` events (default: \"\")",
-          "type": "string"
-        },
-        "unmodifiedText": {
-          "description": "Text that would have been generated by the keyboard if no modifiers were pressed (except for\nshift). Useful for shortcut (accelerator) key handling (default: \"\").",
-          "type": "string"
-        },
-        "keyIdentifier": {
-          "description": "Unique key identifier (e.g., 'U+0041') (default: \"\").",
-          "type": "string"
-        },
-        "code": {
-          "description": "Unique DOM defined string value for each physical key (e.g., 'KeyA') (default: \"\").",
-          "type": "string"
-        },
-        "key": {
-          "description": "Unique DOM defined string value describing the meaning of the key in the context of active\nmodifiers, keyboard layout, etc (e.g., 'AltGr') (default: \"\").",
-          "type": "string"
-        },
-        "windowsVirtualKeyCode": {
-          "description": "Windows virtual key code (default: 0).",
-          "type": "integer"
-        },
-        "nativeVirtualKeyCode": {
-          "description": "Native virtual key code (default: 0).",
-          "type": "integer"
-        },
-        "autoRepeat": {
-          "description": "Whether the event was generated from auto repeat (default: false).",
-          "type": "boolean"
-        },
-        "isKeypad": {
-          "description": "Whether the event was generated from the keypad (default: false).",
-          "type": "boolean"
-        },
-        "isSystemKey": {
-          "description": "Whether the event was a system key event (default: false).",
-          "type": "boolean"
-        },
-        "location": {
-          "description": "Whether the event was from the left or right side of the keyboard. 1=Left, 2=Right (default:\n0).",
-          "type": "integer"
-        },
-        "commands": {
-          "description": "Editing commands to send with the key event (e.g., 'selectAll') (default: []).\nThese are related to but not equal the command names used in `document.execCommand` and NSStandardKeyBindingResponding.\nSee https://source.chromium.org/chromium/chromium/src/+/master:third_party/blink/renderer/core/editing/commands/editor_command_names.h for valid command names.",
-          "type": "array"
-        }
-      },
-      "required": [
-        "type"
-      ]
-    }
-  },
-  {
-    "name": "Input_insertText",
-    "description": "This method emulates inserting text that doesn't come from a key press,\nfor example an emoji keyboard or an IME.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "text": {
-          "description": "The text to insert.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "text"
-      ]
-    }
-  },
-  {
-    "name": "Input_dispatchMouseEvent",
-    "description": "Dispatches a mouse event to the page.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "type": {
-          "description": "Type of the mouse event.",
-          "type": "string"
-        },
-        "x": {
-          "description": "X coordinate of the event relative to the main frame's viewport in CSS pixels.",
-          "type": "number"
-        },
-        "y": {
-          "description": "Y coordinate of the event relative to the main frame's viewport in CSS pixels. 0 refers to\nthe top of the viewport and Y increases as it proceeds towards the bottom of the viewport.",
-          "type": "number"
-        },
-        "modifiers": {
-          "description": "Bit field representing pressed modifier keys. Alt=1, Ctrl=2, Meta/Command=4, Shift=8\n(default: 0).",
-          "type": "integer"
-        },
-        "timestamp": {
-          "description": "Time at which the event occurred.",
-          "type": "number"
-        },
-        "button": {
-          "description": "Mouse button (default: \"none\").",
-          "type": "string",
-          "enum": [
-            "none",
-            "left",
-            "middle",
-            "right",
-            "back",
-            "forward"
-          ]
-        },
-        "buttons": {
-          "description": "A number indicating which buttons are pressed on the mouse when a mouse event is triggered.\nLeft=1, Right=2, Middle=4, Back=8, Forward=16, None=0.",
-          "type": "integer"
-        },
-        "clickCount": {
-          "description": "Number of times the mouse button was clicked (default: 0).",
-          "type": "integer"
-        },
-        "force": {
-          "description": "The normalized pressure, which has a range of [0,1] (default: 0).",
-          "type": "number"
-        },
-        "tangentialPressure": {
-          "description": "The normalized tangential pressure, which has a range of [-1,1] (default: 0).",
-          "type": "number"
-        },
-        "tiltX": {
-          "description": "The plane angle between the Y-Z plane and the plane containing both the stylus axis and the Y axis, in degrees of the range [-90,90], a positive tiltX is to the right (default: 0).",
-          "type": "integer"
-        },
-        "tiltY": {
-          "description": "The plane angle between the X-Z plane and the plane containing both the stylus axis and the X axis, in degrees of the range [-90,90], a positive tiltY is towards the user (default: 0).",
-          "type": "integer"
-        },
-        "twist": {
-          "description": "The clockwise rotation of a pen stylus around its own major axis, in degrees in the range [0,359] (default: 0).",
-          "type": "integer"
-        },
-        "deltaX": {
-          "description": "X delta in CSS pixels for mouse wheel event (default: 0).",
-          "type": "number"
-        },
-        "deltaY": {
-          "description": "Y delta in CSS pixels for mouse wheel event (default: 0).",
-          "type": "number"
-        },
-        "pointerType": {
-          "description": "Pointer type (default: \"mouse\").",
-          "type": "string"
-        }
-      },
-      "required": [
-        "type",
-        "x",
-        "y"
-      ]
-    }
-  },
-  {
-    "name": "Input_dispatchTouchEvent",
-    "description": "Dispatches a touch event to the page.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "type": {
-          "description": "Type of the touch event. TouchEnd and TouchCancel must not contain any touch points, while\nTouchStart and TouchMove must contains at least one.",
-          "type": "string"
-        },
-        "touchPoints": {
-          "description": "Active touch points on the touch device. One event per any changed point (compared to\nprevious touch event in a sequence) is generated, emulating pressing/moving/releasing points\none by one.",
-          "type": "array"
-        },
-        "modifiers": {
-          "description": "Bit field representing pressed modifier keys. Alt=1, Ctrl=2, Meta/Command=4, Shift=8\n(default: 0).",
-          "type": "integer"
-        },
-        "timestamp": {
-          "description": "Time at which the event occurred.",
-          "type": "number"
-        }
-      },
-      "required": [
-        "type",
-        "touchPoints"
+        "clientId",
+        "sessionId",
+        "nodeId"
       ]
     }
   },
   {
     "name": "Input_emulateTouchFromMouseEvent",
-    "description": "Emulates touch event from the mouse event parameters.",
-    "input_schema": {
+    "description": "Emulate touch from mouse event - converts mouse events to touch events for testing touch interactions",
+    "inputSchema": {
       "type": "object",
       "properties": {
-        "type": {
-          "description": "Type of the mouse event.",
-          "type": "string"
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
+        },
+        "sessionId": {
+          "type": "number",
+          "description": "The sessionId to list sessions. Use `Device_listSessions` to get the ID."
         },
         "x": {
-          "description": "X coordinate of the mouse pointer in DIP.",
-          "type": "integer"
+          "type": "number",
+          "description": "X coordinate"
         },
         "y": {
-          "description": "Y coordinate of the mouse pointer in DIP.",
-          "type": "integer"
+          "type": "number",
+          "description": "Y coordinate"
         },
-        "button": {
-          "description": "Mouse button. Only \"none\", \"left\", \"right\" are supported.",
+        "type": {
           "type": "string",
-          "enum": [
-            "none",
-            "left",
-            "middle",
-            "right",
-            "back",
-            "forward"
-          ]
+          "enum": ["mousePressed", "mouseReleased", "mouseMoved"],
+          "description": "Type of mouse event"
         },
         "timestamp": {
-          "description": "Time at which the event occurred (default: current time).",
-          "type": "number"
+          "type": "number",
+          "description": "Timestamp of the mouse event"
+        },
+        "button": {
+          "type": "string",
+          "enum": ["left", "middle", "right"],
+          "description": "Mouse button"
         },
         "deltaX": {
-          "description": "X delta in DIP for mouse wheel event (default: 0).",
-          "type": "number"
+          "type": "number",
+          "description": "Horizontal scroll delta (optional)"
         },
         "deltaY": {
-          "description": "Y delta in DIP for mouse wheel event (default: 0).",
-          "type": "number"
-        },
-        "modifiers": {
-          "description": "Bit field representing pressed modifier keys. Alt=1, Ctrl=2, Meta/Command=4, Shift=8\n(default: 0).",
-          "type": "integer"
-        },
-        "clickCount": {
-          "description": "Number of times the mouse button was clicked (default: 0).",
-          "type": "integer"
+          "type": "number",
+          "description": "Vertical scroll delta (optional)"
         }
       },
       "required": [
+        "clientId",
+        "sessionId",
         "type",
         "x",
         "y",
+        "timestamp",
         "button"
       ]
     }
   },
   {
-    "name": "Input_setIgnoreInputEvents",
-    "description": "Ignores input events (useful while auditing page).",
-    "input_schema": {
+    "name": "JSB_getGlobalProps",
+    "description": "Returns the global properties for the given session.",
+    "inputSchema": {
       "type": "object",
       "properties": {
-        "ignore": {
-          "description": "Ignores input events processing when set to true.",
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "ignore"
-      ]
-    }
-  },
-  {
-    "name": "Input_setInterceptDrags",
-    "description": "Prevents default drag and drop behavior and instead emits `Input.dragIntercepted` events.\nDrag and drop behavior can be directly controlled via `Input.dispatchDragEvent`.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "enabled": {
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "enabled"
-      ]
-    }
-  },
-  {
-    "name": "Input_synthesizePinchGesture",
-    "description": "Synthesizes a pinch gesture over a time period by issuing appropriate touch events.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "x": {
-          "description": "X coordinate of the start of the gesture in CSS pixels.",
-          "type": "number"
-        },
-        "y": {
-          "description": "Y coordinate of the start of the gesture in CSS pixels.",
-          "type": "number"
-        },
-        "scaleFactor": {
-          "description": "Relative scale factor after zooming (>1.0 zooms in, <1.0 zooms out).",
-          "type": "number"
-        },
-        "relativeSpeed": {
-          "description": "Relative pointer speed in pixels per second (default: 800).",
-          "type": "integer"
-        },
-        "gestureSourceType": {
-          "description": "Which type of input events to be generated (default: 'default', which queries the platform\nfor the preferred input type).",
+        "clientId": {
           "type": "string",
-          "enum": [
-            "default",
-            "touch",
-            "mouse"
-          ]
-        }
-      },
-      "required": [
-        "x",
-        "y",
-        "scaleFactor"
-      ]
-    }
-  },
-  {
-    "name": "Input_synthesizeScrollGesture",
-    "description": "Synthesizes a scroll gesture over a time period by issuing appropriate touch events.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "x": {
-          "description": "X coordinate of the start of the gesture in CSS pixels.",
-          "type": "number"
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
         },
-        "y": {
-          "description": "Y coordinate of the start of the gesture in CSS pixels.",
-          "type": "number"
-        },
-        "xDistance": {
-          "description": "The distance to scroll along the X axis (positive to scroll left).",
-          "type": "number"
-        },
-        "yDistance": {
-          "description": "The distance to scroll along the Y axis (positive to scroll up).",
-          "type": "number"
-        },
-        "xOverscroll": {
-          "description": "The number of additional pixels to scroll back along the X axis, in addition to the given\ndistance.",
-          "type": "number"
-        },
-        "yOverscroll": {
-          "description": "The number of additional pixels to scroll back along the Y axis, in addition to the given\ndistance.",
-          "type": "number"
-        },
-        "preventFling": {
-          "description": "Prevent fling (default: true).",
-          "type": "boolean"
-        },
-        "speed": {
-          "description": "Swipe speed in pixels per second (default: 800).",
-          "type": "integer"
-        },
-        "gestureSourceType": {
-          "description": "Which type of input events to be generated (default: 'default', which queries the platform\nfor the preferred input type).",
-          "type": "string",
-          "enum": [
-            "default",
-            "touch",
-            "mouse"
-          ]
-        },
-        "repeatCount": {
-          "description": "The number of times to repeat the gesture (default: 0).",
-          "type": "integer"
-        },
-        "repeatDelayMs": {
-          "description": "The number of milliseconds delay between each repeat. (default: 250).",
-          "type": "integer"
-        },
-        "interactionMarkerName": {
-          "description": "The name of the interaction markers to generate, if not empty (default: \"\").",
-          "type": "string"
-        }
-      },
-      "required": [
-        "x",
-        "y"
-      ]
-    }
-  },
-  {
-    "name": "Input_synthesizeTapGesture",
-    "description": "Synthesizes a tap gesture over a time period by issuing appropriate touch events.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "x": {
-          "description": "X coordinate of the start of the gesture in CSS pixels.",
-          "type": "number"
-        },
-        "y": {
-          "description": "Y coordinate of the start of the gesture in CSS pixels.",
-          "type": "number"
-        },
-        "duration": {
-          "description": "Duration between touchdown and touchup events in ms (default: 50).",
-          "type": "integer"
-        },
-        "tapCount": {
-          "description": "Number of times to perform the tap (e.g. 2 for double tap, default: 1).",
-          "type": "integer"
-        },
-        "gestureSourceType": {
-          "description": "Which type of input events to be generated (default: 'default', which queries the platform\nfor the preferred input type).",
-          "type": "string",
-          "enum": [
-            "default",
-            "touch",
-            "mouse"
-          ]
-        }
-      },
-      "required": [
-        "x",
-        "y"
-      ]
-    }
-  },
-  {
-    "name": "Log_clear",
-    "description": "Clears the log.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Log_disable",
-    "description": "Disables log domain, prevents further log entries from being reported to the client.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Log_enable",
-    "description": "Enables log domain, sends the entries collected so far to the client by means of the\n`entryAdded` notification.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Log_startViolationsReport",
-    "description": "start violation reporting.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "config": {
-          "description": "Configuration for violations.",
-          "type": "array"
-        }
-      },
-      "required": [
-        "config"
-      ]
-    }
-  },
-  {
-    "name": "Log_stopViolationsReport",
-    "description": "Stop violation reporting.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Network_setAcceptedEncodings",
-    "description": "Sets a list of content encodings that will be accepted. Empty list means no encoding is accepted.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "encodings": {
-          "description": "List of accepted content encodings.",
-          "type": "array"
-        }
-      },
-      "required": [
-        "encodings"
-      ]
-    }
-  },
-  {
-    "name": "Network_clearAcceptedEncodingsOverride",
-    "description": "Clears accepted encodings set by setAcceptedEncodings",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Network_canClearBrowserCache",
-    "description": "Tells whether clearing browser cache is supported.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Network_canClearBrowserCookies",
-    "description": "Tells whether clearing browser cookies is supported.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Network_canEmulateNetworkConditions",
-    "description": "Tells whether emulation of network conditions is supported.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Network_clearBrowserCache",
-    "description": "Clears browser cache.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Network_clearBrowserCookies",
-    "description": "Clears browser cookies.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Network_continueInterceptedRequest",
-    "description": "Response to Network.requestIntercepted which either modifies the request to continue with any\nmodifications, or blocks it, or completes it with the provided response bytes. If a network\nfetch occurs as a result which encounters a redirect an additional Network.requestIntercepted\nevent will be sent with the same InterceptionId.\nDeprecated, use Fetch.continueRequest, Fetch.fulfillRequest and Fetch.failRequest instead.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "interceptionId": {
-          "type": "string"
-        },
-        "errorReason": {
-          "description": "If set this causes the request to fail with the given reason. Passing `Aborted` for requests\nmarked with `isNavigationRequest` also cancels the navigation. Must not be set in response\nto an authChallenge.",
-          "type": "string",
-          "enum": [
-            "Failed",
-            "Aborted",
-            "TimedOut",
-            "AccessDenied",
-            "ConnectionClosed",
-            "ConnectionReset",
-            "ConnectionRefused",
-            "ConnectionAborted",
-            "ConnectionFailed",
-            "NameNotResolved",
-            "InternetDisconnected",
-            "AddressUnreachable",
-            "BlockedByClient",
-            "BlockedByResponse"
-          ]
-        },
-        "rawResponse": {
-          "description": "If set the requests completes using with the provided base64 encoded raw response, including\nHTTP status line and headers etc... Must not be set in response to an authChallenge. (Encoded as a base64 string when passed over JSON)",
-          "type": "string"
-        },
-        "url": {
-          "description": "If set the request url will be modified in a way that's not observable by page. Must not be\nset in response to an authChallenge.",
-          "type": "string"
-        },
-        "method": {
-          "description": "If set this allows the request method to be overridden. Must not be set in response to an\nauthChallenge.",
-          "type": "string"
-        },
-        "postData": {
-          "description": "If set this allows postData to be set. Must not be set in response to an authChallenge.",
-          "type": "string"
-        },
-        "headers": {
-          "description": "If set this allows the request headers to be changed. Must not be set in response to an\nauthChallenge.",
-          "type": "object"
-        },
-        "authChallengeResponse": {
-          "description": "Response to a requestIntercepted with an authChallenge. Must not be set otherwise.",
-          "type": "object"
-        }
-      },
-      "required": [
-        "interceptionId"
-      ]
-    }
-  },
-  {
-    "name": "Network_deleteCookies",
-    "description": "Deletes browser cookies with matching name and url or domain/path pair.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "description": "Name of the cookies to remove.",
-          "type": "string"
-        },
-        "url": {
-          "description": "If specified, deletes all the cookies with the given name where domain and path match\nprovided URL.",
-          "type": "string"
-        },
-        "domain": {
-          "description": "If specified, deletes only cookies with the exact domain.",
-          "type": "string"
-        },
-        "path": {
-          "description": "If specified, deletes only cookies with the exact path.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "name"
-      ]
-    }
-  },
-  {
-    "name": "Network_disable",
-    "description": "Disables network tracking, prevents network events from being sent to the client.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Network_emulateNetworkConditions",
-    "description": "Activates emulation of network conditions.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "offline": {
-          "description": "True to emulate internet disconnection.",
-          "type": "boolean"
-        },
-        "latency": {
-          "description": "Minimum latency from request sent to response headers received (ms).",
-          "type": "number"
-        },
-        "downloadThroughput": {
-          "description": "Maximal aggregated download throughput (bytes/sec). -1 disables download throttling.",
-          "type": "number"
-        },
-        "uploadThroughput": {
-          "description": "Maximal aggregated upload throughput (bytes/sec).  -1 disables upload throttling.",
-          "type": "number"
-        },
-        "connectionType": {
-          "description": "Connection type if known.",
-          "type": "string",
-          "enum": [
-            "none",
-            "cellular2g",
-            "cellular3g",
-            "cellular4g",
-            "bluetooth",
-            "ethernet",
-            "wifi",
-            "wimax",
-            "other"
-          ]
-        }
-      },
-      "required": [
-        "offline",
-        "latency",
-        "downloadThroughput",
-        "uploadThroughput"
-      ]
-    }
-  },
-  {
-    "name": "Network_enable",
-    "description": "Enables network tracking, network events will now be delivered to the client.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "maxTotalBufferSize": {
-          "description": "Buffer size in bytes to use when preserving network payloads (XHRs, etc).",
-          "type": "integer"
-        },
-        "maxResourceBufferSize": {
-          "description": "Per-resource buffer size in bytes to use when preserving network payloads (XHRs, etc).",
-          "type": "integer"
-        },
-        "maxPostDataSize": {
-          "description": "Longest post body size (in bytes) that would be included in requestWillBeSent notification",
-          "type": "integer"
-        }
-      },
-      "required": []
-    }
-  },
-  {
-    "name": "Network_getAllCookies",
-    "description": "Returns all browser cookies. Depending on the backend support, will return detailed cookie\ninformation in the `cookies` field.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Network_getCertificate",
-    "description": "Returns the DER-encoded certificate.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "origin": {
-          "description": "Origin to get certificate for.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "origin"
-      ]
-    }
-  },
-  {
-    "name": "Network_getCookies",
-    "description": "Returns all browser cookies for the current URL. Depending on the backend support, will return\ndetailed cookie information in the `cookies` field.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "urls": {
-          "description": "The list of URLs for which applicable cookies will be fetched.\nIf not specified, it's assumed to be set to the list containing\nthe URLs of the page and all of its subframes.",
-          "type": "array"
-        }
-      },
-      "required": []
-    }
-  },
-  {
-    "name": "Network_getResponseBody",
-    "description": "Returns content served for the given request.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "requestId": {
-          "description": "Identifier of the network request to get content for.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "requestId"
-      ]
-    }
-  },
-  {
-    "name": "Network_getRequestPostData",
-    "description": "Returns post data sent with the request. Returns an error when no data was sent with the request.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "requestId": {
-          "description": "Identifier of the network request to get content for.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "requestId"
-      ]
-    }
-  },
-  {
-    "name": "Network_getResponseBodyForInterception",
-    "description": "Returns content served for the given currently intercepted request.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "interceptionId": {
-          "description": "Identifier for the intercepted request to get body for.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "interceptionId"
-      ]
-    }
-  },
-  {
-    "name": "Network_takeResponseBodyForInterceptionAsStream",
-    "description": "Returns a handle to the stream representing the response body. Note that after this command,\nthe intercepted request can't be continued as is -- you either need to cancel it or to provide\nthe response body. The stream only supports sequential read, IO.read will fail if the position\nis specified.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "interceptionId": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "interceptionId"
-      ]
-    }
-  },
-  {
-    "name": "Network_replayXHR",
-    "description": "This method sends a new XMLHttpRequest which is identical to the original one. The following\nparameters should be identical: method, url, async, request body, extra headers, withCredentials\nattribute, user, password.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "requestId": {
-          "description": "Identifier of XHR to replay.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "requestId"
-      ]
-    }
-  },
-  {
-    "name": "Network_searchInResponseBody",
-    "description": "Searches for given string in response content.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "requestId": {
-          "description": "Identifier of the network response to search.",
-          "type": "string"
-        },
-        "query": {
-          "description": "String to search for.",
-          "type": "string"
-        },
-        "caseSensitive": {
-          "description": "If true, search is case sensitive.",
-          "type": "boolean"
-        },
-        "isRegex": {
-          "description": "If true, treats string parameter as regex.",
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "requestId",
-        "query"
-      ]
-    }
-  },
-  {
-    "name": "Network_setBlockedURLs",
-    "description": "Blocks URLs from loading.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "urls": {
-          "description": "URL patterns to block. Wildcards ('*') are allowed.",
-          "type": "array"
-        }
-      },
-      "required": [
-        "urls"
-      ]
-    }
-  },
-  {
-    "name": "Network_setBypassServiceWorker",
-    "description": "Toggles ignoring of service worker for each request.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "bypass": {
-          "description": "Bypass service worker and load from network.",
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "bypass"
-      ]
-    }
-  },
-  {
-    "name": "Network_setCacheDisabled",
-    "description": "Toggles ignoring cache for each request. If `true`, cache will not be used.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "cacheDisabled": {
-          "description": "Cache disabled state.",
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "cacheDisabled"
-      ]
-    }
-  },
-  {
-    "name": "Network_setCookie",
-    "description": "Sets a cookie with the given cookie data; may overwrite equivalent cookies if they exist.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "description": "Cookie name.",
-          "type": "string"
-        },
-        "value": {
-          "description": "Cookie value.",
-          "type": "string"
-        },
-        "url": {
-          "description": "The request-URI to associate with the setting of the cookie. This value can affect the\ndefault domain, path, source port, and source scheme values of the created cookie.",
-          "type": "string"
-        },
-        "domain": {
-          "description": "Cookie domain.",
-          "type": "string"
-        },
-        "path": {
-          "description": "Cookie path.",
-          "type": "string"
-        },
-        "secure": {
-          "description": "True if cookie is secure.",
-          "type": "boolean"
-        },
-        "httpOnly": {
-          "description": "True if cookie is http-only.",
-          "type": "boolean"
-        },
-        "sameSite": {
-          "description": "Cookie SameSite type.",
-          "type": "string",
-          "enum": [
-            "Strict",
-            "Lax",
-            "None"
-          ]
-        },
-        "expires": {
-          "description": "Cookie expiration date, session cookie if not set",
-          "type": "number"
-        },
-        "priority": {
-          "description": "Cookie Priority type.",
-          "type": "string",
-          "enum": [
-            "Low",
-            "Medium",
-            "High"
-          ]
-        },
-        "sameParty": {
-          "description": "True if cookie is SameParty.",
-          "type": "boolean"
-        },
-        "sourceScheme": {
-          "description": "Cookie source scheme type.",
-          "type": "string",
-          "enum": [
-            "Unset",
-            "NonSecure",
-            "Secure"
-          ]
-        },
-        "sourcePort": {
-          "description": "Cookie source port. Valid values are {-1, [1, 65535]}, -1 indicates an unspecified port.\nAn unspecified port value allows protocol clients to emulate legacy cookie scope for the port.\nThis is a temporary ability and it will be removed in the future.",
-          "type": "integer"
-        }
-      },
-      "required": [
-        "name",
-        "value"
-      ]
-    }
-  },
-  {
-    "name": "Network_setCookies",
-    "description": "Sets given cookies.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "cookies": {
-          "description": "Cookies to be set.",
-          "type": "array"
-        }
-      },
-      "required": [
-        "cookies"
-      ]
-    }
-  },
-  {
-    "name": "Network_setDataSizeLimitsForTest",
-    "description": "For testing.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "maxTotalSize": {
-          "description": "Maximum total buffer size.",
-          "type": "integer"
-        },
-        "maxResourceSize": {
-          "description": "Maximum per-resource size.",
-          "type": "integer"
-        }
-      },
-      "required": [
-        "maxTotalSize",
-        "maxResourceSize"
-      ]
-    }
-  },
-  {
-    "name": "Network_setExtraHTTPHeaders",
-    "description": "Specifies whether to always send extra HTTP headers with the requests from this page.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "headers": {
-          "description": "Map with extra HTTP headers.",
-          "type": "object"
-        }
-      },
-      "required": [
-        "headers"
-      ]
-    }
-  },
-  {
-    "name": "Network_setAttachDebugStack",
-    "description": "Specifies whether to attach a page script stack id in requests",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "enabled": {
-          "description": "Whether to attach a page script stack for debugging purpose.",
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "enabled"
-      ]
-    }
-  },
-  {
-    "name": "Network_setRequestInterception",
-    "description": "Sets the requests to intercept that match the provided patterns and optionally resource types.\nDeprecated, please use Fetch.enable instead.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "patterns": {
-          "description": "Requests matching any of these patterns will be forwarded and wait for the corresponding\ncontinueInterceptedRequest call.",
-          "type": "array"
-        }
-      },
-      "required": [
-        "patterns"
-      ]
-    }
-  },
-  {
-    "name": "Network_setUserAgentOverride",
-    "description": "Allows overriding user agent with the given string.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "userAgent": {
-          "description": "User agent to use.",
-          "type": "string"
-        },
-        "acceptLanguage": {
-          "description": "Browser langugage to emulate.",
-          "type": "string"
-        },
-        "platform": {
-          "description": "The platform navigator.platform should return.",
-          "type": "string"
-        },
-        "userAgentMetadata": {
-          "description": "To be sent in Sec-CH-UA-* headers and returned in navigator.userAgentData",
-          "type": "object"
-        }
-      },
-      "required": [
-        "userAgent"
-      ]
-    }
-  },
-  {
-    "name": "Network_getSecurityIsolationStatus",
-    "description": "Returns information about the COEP/COOP isolation status.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "frameId": {
-          "description": "If no frameId is provided, the status of the target is provided.",
-          "type": "string"
-        }
-      },
-      "required": []
-    }
-  },
-  {
-    "name": "Network_loadNetworkResource",
-    "description": "Fetches the resource and returns the content.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "frameId": {
-          "description": "Frame id to get the resource for.",
-          "type": "string"
-        },
-        "url": {
-          "description": "URL of the resource to get content for.",
-          "type": "string"
-        },
-        "options": {
-          "description": "Options for the request.",
-          "type": "object"
-        }
-      },
-      "required": [
-        "frameId",
-        "url",
-        "options"
-      ]
-    }
-  },
-  {
-    "name": "Overlay_disable",
-    "description": "Disables domain notifications.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Overlay_enable",
-    "description": "Enables domain notifications.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Overlay_getHighlightObjectForTest",
-    "description": "For testing.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "nodeId": {
-          "description": "Id of the node to get highlight object for.",
-          "type": "integer"
-        },
-        "includeDistance": {
-          "description": "Whether to include distance info.",
-          "type": "boolean"
-        },
-        "includeStyle": {
-          "description": "Whether to include style info.",
-          "type": "boolean"
-        },
-        "colorFormat": {
-          "description": "The color format to get config with (default: hex).",
-          "type": "string",
-          "enum": [
-            "rgb",
-            "hsl",
-            "hex"
-          ]
-        },
-        "showAccessibilityInfo": {
-          "description": "Whether to show accessibility info (default: true).",
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "nodeId"
-      ]
-    }
-  },
-  {
-    "name": "Overlay_getGridHighlightObjectsForTest",
-    "description": "For Persistent Grid testing.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "nodeIds": {
-          "description": "Ids of the node to get highlight object for.",
-          "type": "array"
-        }
-      },
-      "required": [
-        "nodeIds"
-      ]
-    }
-  },
-  {
-    "name": "Overlay_getSourceOrderHighlightObjectForTest",
-    "description": "For Source Order Viewer testing.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "nodeId": {
-          "description": "Id of the node to highlight.",
-          "type": "integer"
-        }
-      },
-      "required": [
-        "nodeId"
-      ]
-    }
-  },
-  {
-    "name": "Overlay_hideHighlight",
-    "description": "Hides any highlight.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Overlay_highlightFrame",
-    "description": "Highlights owner element of the frame with given id.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "frameId": {
-          "description": "Identifier of the frame to highlight.",
-          "type": "string"
-        },
-        "contentColor": {
-          "description": "The content box highlight fill color (default: transparent).",
-          "type": "object"
-        },
-        "contentOutlineColor": {
-          "description": "The content box highlight outline color (default: transparent).",
-          "type": "object"
-        }
-      },
-      "required": [
-        "frameId"
-      ]
-    }
-  },
-  {
-    "name": "Overlay_highlightNode",
-    "description": "Highlights DOM node with given id or with the given JavaScript object wrapper. Either nodeId or\nobjectId must be specified.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "highlightConfig": {
-          "description": "A descriptor for the highlight appearance.",
-          "type": "object"
-        },
-        "nodeId": {
-          "description": "Identifier of the node to highlight.",
-          "type": "integer"
-        },
-        "backendNodeId": {
-          "description": "Identifier of the backend node to highlight.",
-          "type": "integer"
-        },
-        "objectId": {
-          "description": "JavaScript object id of the node to be highlighted.",
-          "type": "string"
-        },
-        "selector": {
-          "description": "Selectors to highlight relevant nodes.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "highlightConfig"
-      ]
-    }
-  },
-  {
-    "name": "Overlay_highlightQuad",
-    "description": "Highlights given quad. Coordinates are absolute with respect to the main frame viewport.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "quad": {
-          "description": "Quad to highlight",
-          "type": "array"
-        },
-        "color": {
-          "description": "The highlight fill color (default: transparent).",
-          "type": "object"
-        },
-        "outlineColor": {
-          "description": "The highlight outline color (default: transparent).",
-          "type": "object"
-        }
-      },
-      "required": [
-        "quad"
-      ]
-    }
-  },
-  {
-    "name": "Overlay_highlightRect",
-    "description": "Highlights given rectangle. Coordinates are absolute with respect to the main frame viewport.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "x": {
-          "description": "X coordinate",
-          "type": "integer"
-        },
-        "y": {
-          "description": "Y coordinate",
-          "type": "integer"
-        },
-        "width": {
-          "description": "Rectangle width",
-          "type": "integer"
-        },
-        "height": {
-          "description": "Rectangle height",
-          "type": "integer"
-        },
-        "color": {
-          "description": "The highlight fill color (default: transparent).",
-          "type": "object"
-        },
-        "outlineColor": {
-          "description": "The highlight outline color (default: transparent).",
-          "type": "object"
-        }
-      },
-      "required": [
-        "x",
-        "y",
-        "width",
-        "height"
-      ]
-    }
-  },
-  {
-    "name": "Overlay_highlightSourceOrder",
-    "description": "Highlights the source order of the children of the DOM node with given id or with the given\nJavaScript object wrapper. Either nodeId or objectId must be specified.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "sourceOrderConfig": {
-          "description": "A descriptor for the appearance of the overlay drawing.",
-          "type": "object"
-        },
-        "nodeId": {
-          "description": "Identifier of the node to highlight.",
-          "type": "integer"
-        },
-        "backendNodeId": {
-          "description": "Identifier of the backend node to highlight.",
-          "type": "integer"
-        },
-        "objectId": {
-          "description": "JavaScript object id of the node to be highlighted.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "sourceOrderConfig"
-      ]
-    }
-  },
-  {
-    "name": "Overlay_setInspectMode",
-    "description": "Enters the 'inspect' mode. In this mode, elements that user is hovering over are highlighted.\nBackend then generates 'inspectNodeRequested' event upon element selection.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "mode": {
-          "description": "Set an inspection mode.",
-          "type": "string",
-          "enum": [
-            "searchForNode",
-            "searchForUAShadowDOM",
-            "captureAreaScreenshot",
-            "showDistances",
-            "none"
-          ]
-        },
-        "highlightConfig": {
-          "description": "A descriptor for the highlight appearance of hovered-over nodes. May be omitted if `enabled\n== false`.",
-          "type": "object"
-        }
-      },
-      "required": [
-        "mode"
-      ]
-    }
-  },
-  {
-    "name": "Overlay_setShowAdHighlights",
-    "description": "Highlights owner element of all frames detected to be ads.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "show": {
-          "description": "True for showing ad highlights",
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "show"
-      ]
-    }
-  },
-  {
-    "name": "Overlay_setPausedInDebuggerMessage",
-    "description": "Execute Overlay.setPausedInDebuggerMessage",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "message": {
-          "description": "The message to display, also triggers resume and step over controls.",
-          "type": "string"
-        }
-      },
-      "required": []
-    }
-  },
-  {
-    "name": "Overlay_setShowDebugBorders",
-    "description": "Requests that backend shows debug borders on layers",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "show": {
-          "description": "True for showing debug borders",
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "show"
-      ]
-    }
-  },
-  {
-    "name": "Overlay_setShowFPSCounter",
-    "description": "Requests that backend shows the FPS counter",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "show": {
-          "description": "True for showing the FPS counter",
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "show"
-      ]
-    }
-  },
-  {
-    "name": "Overlay_setShowGridOverlays",
-    "description": "Highlight multiple elements with the CSS Grid overlay.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "gridNodeHighlightConfigs": {
-          "description": "An array of node identifiers and descriptors for the highlight appearance.",
-          "type": "array"
-        }
-      },
-      "required": [
-        "gridNodeHighlightConfigs"
-      ]
-    }
-  },
-  {
-    "name": "Overlay_setShowFlexOverlays",
-    "description": "Execute Overlay.setShowFlexOverlays",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "flexNodeHighlightConfigs": {
-          "description": "An array of node identifiers and descriptors for the highlight appearance.",
-          "type": "array"
-        }
-      },
-      "required": [
-        "flexNodeHighlightConfigs"
-      ]
-    }
-  },
-  {
-    "name": "Overlay_setShowScrollSnapOverlays",
-    "description": "Execute Overlay.setShowScrollSnapOverlays",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "scrollSnapHighlightConfigs": {
-          "description": "An array of node identifiers and descriptors for the highlight appearance.",
-          "type": "array"
-        }
-      },
-      "required": [
-        "scrollSnapHighlightConfigs"
-      ]
-    }
-  },
-  {
-    "name": "Overlay_setShowPaintRects",
-    "description": "Requests that backend shows paint rectangles",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "result": {
-          "description": "True for showing paint rectangles",
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "result"
-      ]
-    }
-  },
-  {
-    "name": "Overlay_setShowLayoutShiftRegions",
-    "description": "Requests that backend shows layout shift regions",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "result": {
-          "description": "True for showing layout shift regions",
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "result"
-      ]
-    }
-  },
-  {
-    "name": "Overlay_setShowScrollBottleneckRects",
-    "description": "Requests that backend shows scroll bottleneck rects",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "show": {
-          "description": "True for showing scroll bottleneck rects",
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "show"
-      ]
-    }
-  },
-  {
-    "name": "Overlay_setShowHitTestBorders",
-    "description": "Requests that backend shows hit-test borders on layers",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "show": {
-          "description": "True for showing hit-test borders",
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "show"
-      ]
-    }
-  },
-  {
-    "name": "Overlay_setShowWebVitals",
-    "description": "Request that backend shows an overlay with web vital metrics.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "show": {
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "show"
-      ]
-    }
-  },
-  {
-    "name": "Overlay_setShowViewportSizeOnResize",
-    "description": "Paints viewport size upon main frame resize.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "show": {
-          "description": "Whether to paint size or not.",
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "show"
-      ]
-    }
-  },
-  {
-    "name": "Overlay_setShowHinge",
-    "description": "Add a dual screen device hinge",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "hingeConfig": {
-          "description": "hinge data, null means hideHinge",
-          "type": "object"
-        }
-      },
-      "required": []
-    }
-  },
-  {
-    "name": "Page_addScriptToEvaluateOnLoad",
-    "description": "Deprecated, please use addScriptToEvaluateOnNewDocument instead.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "scriptSource": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "scriptSource"
-      ]
-    }
-  },
-  {
-    "name": "Page_addScriptToEvaluateOnNewDocument",
-    "description": "Evaluates given script in every frame upon creation (before loading frame's scripts).",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "source": {
-          "type": "string"
-        },
-        "worldName": {
-          "description": "If specified, creates an isolated world with the given name and evaluates given script in it.\nThis world name will be used as the ExecutionContextDescription::name when the corresponding\nevent is emitted.",
-          "type": "string"
-        },
-        "includeCommandLineAPI": {
-          "description": "Specifies whether command line API should be available to the script, defaults\nto false.",
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "source"
-      ]
-    }
-  },
-  {
-    "name": "Page_bringToFront",
-    "description": "Brings page to front (activates tab).",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Page_captureScreenshot",
-    "description": "Capture page screenshot.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "format": {
-          "description": "Image compression format (defaults to png).",
-          "type": "string"
-        },
-        "quality": {
-          "description": "Compression quality from range [0..100] (jpeg only).",
-          "type": "integer"
-        },
-        "clip": {
-          "description": "Capture the screenshot of a given region only.",
-          "type": "object"
-        },
-        "fromSurface": {
-          "description": "Capture the screenshot from the surface, rather than the view. Defaults to true.",
-          "type": "boolean"
-        },
-        "captureBeyondViewport": {
-          "description": "Capture the screenshot beyond the viewport. Defaults to false.",
-          "type": "boolean"
-        }
-      },
-      "required": []
-    }
-  },
-  {
-    "name": "Page_captureSnapshot",
-    "description": "Returns a snapshot of the page as a string. For MHTML format, the serialization includes\niframes, shadow DOM, external resources, and element-inline styles.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "format": {
-          "description": "Format (defaults to mhtml).",
-          "type": "string"
-        }
-      },
-      "required": []
-    }
-  },
-  {
-    "name": "Page_clearDeviceMetricsOverride",
-    "description": "Clears the overridden device metrics.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Page_clearDeviceOrientationOverride",
-    "description": "Clears the overridden Device Orientation.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Page_clearGeolocationOverride",
-    "description": "Clears the overridden Geolocation Position and Error.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Page_createIsolatedWorld",
-    "description": "Creates an isolated world for the given frame.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "frameId": {
-          "description": "Id of the frame in which the isolated world should be created.",
-          "type": "string"
-        },
-        "worldName": {
-          "description": "An optional name which is reported in the Execution Context.",
-          "type": "string"
-        },
-        "grantUniveralAccess": {
-          "description": "Whether or not universal access should be granted to the isolated world. This is a powerful\noption, use with caution.",
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "frameId"
-      ]
-    }
-  },
-  {
-    "name": "Page_deleteCookie",
-    "description": "Deletes browser cookie with given name, domain and path.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "cookieName": {
-          "description": "Name of the cookie to remove.",
-          "type": "string"
-        },
-        "url": {
-          "description": "URL to match cooke domain and path.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "cookieName",
-        "url"
-      ]
-    }
-  },
-  {
-    "name": "Page_disable",
-    "description": "Disables page domain notifications.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Page_enable",
-    "description": "Enables page domain notifications.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Page_getAppManifest",
-    "description": "Execute Page.getAppManifest",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Page_getInstallabilityErrors",
-    "description": "Execute Page.getInstallabilityErrors",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Page_getManifestIcons",
-    "description": "Execute Page.getManifestIcons",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Page_getCookies",
-    "description": "Returns all browser cookies. Depending on the backend support, will return detailed cookie\ninformation in the `cookies` field.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Page_getFrameTree",
-    "description": "Returns present frame tree structure.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Page_getLayoutMetrics",
-    "description": "Returns metrics relating to the layouting of the page, such as viewport bounds/scale.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Page_getNavigationHistory",
-    "description": "Returns navigation history for the current page.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Page_resetNavigationHistory",
-    "description": "Resets navigation history for the current page.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Page_getResourceContent",
-    "description": "Returns content of the given resource.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "frameId": {
-          "description": "Frame id to get resource for.",
-          "type": "string"
-        },
-        "url": {
-          "description": "URL of the resource to get content for.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "frameId",
-        "url"
-      ]
-    }
-  },
-  {
-    "name": "Page_getResourceTree",
-    "description": "Returns present frame / resource tree structure.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Page_handleJavaScriptDialog",
-    "description": "Accepts or dismisses a JavaScript initiated dialog (alert, confirm, prompt, or onbeforeunload).",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "accept": {
-          "description": "Whether to accept or dismiss the dialog.",
-          "type": "boolean"
-        },
-        "promptText": {
-          "description": "The text to enter into the dialog prompt before accepting. Used only if this is a prompt\ndialog.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "accept"
-      ]
-    }
-  },
-  {
-    "name": "Page_navigate",
-    "description": "Navigates current page to the given URL.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "url": {
-          "description": "URL to navigate the page to.",
-          "type": "string"
-        },
-        "referrer": {
-          "description": "Referrer URL.",
-          "type": "string"
-        },
-        "transitionType": {
-          "description": "Intended transition type.",
-          "type": "string",
-          "enum": [
-            "link",
-            "typed",
-            "address_bar",
-            "auto_bookmark",
-            "auto_subframe",
-            "manual_subframe",
-            "generated",
-            "auto_toplevel",
-            "form_submit",
-            "reload",
-            "keyword",
-            "keyword_generated",
-            "other"
-          ]
-        },
-        "frameId": {
-          "description": "Frame id to navigate, if not specified navigates the top frame.",
-          "type": "string"
-        },
-        "referrerPolicy": {
-          "description": "Referrer-policy used for the navigation.",
-          "type": "string",
-          "enum": [
-            "noReferrer",
-            "noReferrerWhenDowngrade",
-            "origin",
-            "originWhenCrossOrigin",
-            "sameOrigin",
-            "strictOrigin",
-            "strictOriginWhenCrossOrigin",
-            "unsafeUrl"
-          ]
-        }
-      },
-      "required": [
-        "url"
-      ]
-    }
-  },
-  {
-    "name": "Page_navigateToHistoryEntry",
-    "description": "Navigates current page to the given history entry.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "entryId": {
-          "description": "Unique id of the entry to navigate to.",
-          "type": "integer"
-        }
-      },
-      "required": [
-        "entryId"
-      ]
-    }
-  },
-  {
-    "name": "Page_printToPDF",
-    "description": "Print page as PDF.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "landscape": {
-          "description": "Paper orientation. Defaults to false.",
-          "type": "boolean"
-        },
-        "displayHeaderFooter": {
-          "description": "Display header and footer. Defaults to false.",
-          "type": "boolean"
-        },
-        "printBackground": {
-          "description": "Print background graphics. Defaults to false.",
-          "type": "boolean"
-        },
-        "scale": {
-          "description": "Scale of the webpage rendering. Defaults to 1.",
-          "type": "number"
-        },
-        "paperWidth": {
-          "description": "Paper width in inches. Defaults to 8.5 inches.",
-          "type": "number"
-        },
-        "paperHeight": {
-          "description": "Paper height in inches. Defaults to 11 inches.",
-          "type": "number"
-        },
-        "marginTop": {
-          "description": "Top margin in inches. Defaults to 1cm (~0.4 inches).",
-          "type": "number"
-        },
-        "marginBottom": {
-          "description": "Bottom margin in inches. Defaults to 1cm (~0.4 inches).",
-          "type": "number"
-        },
-        "marginLeft": {
-          "description": "Left margin in inches. Defaults to 1cm (~0.4 inches).",
-          "type": "number"
-        },
-        "marginRight": {
-          "description": "Right margin in inches. Defaults to 1cm (~0.4 inches).",
-          "type": "number"
-        },
-        "pageRanges": {
-          "description": "Paper ranges to print, e.g., '1-5, 8, 11-13'. Defaults to the empty string, which means\nprint all pages.",
-          "type": "string"
-        },
-        "ignoreInvalidPageRanges": {
-          "description": "Whether to silently ignore invalid but successfully parsed page ranges, such as '3-2'.\nDefaults to false.",
-          "type": "boolean"
-        },
-        "headerTemplate": {
-          "description": "HTML template for the print header. Should be valid HTML markup with following\nclasses used to inject printing values into them:\n- `date`: formatted print date\n- `title`: document title\n- `url`: document location\n- `pageNumber`: current page number\n- `totalPages`: total pages in the document\n\nFor example, `<span class=title></span>` would generate span containing the title.",
-          "type": "string"
-        },
-        "footerTemplate": {
-          "description": "HTML template for the print footer. Should use the same format as the `headerTemplate`.",
-          "type": "string"
-        },
-        "preferCSSPageSize": {
-          "description": "Whether or not to prefer page size as defined by css. Defaults to false,\nin which case the content will be scaled to fit the paper size.",
-          "type": "boolean"
-        },
-        "transferMode": {
-          "description": "return as stream",
-          "type": "string"
-        }
-      },
-      "required": []
-    }
-  },
-  {
-    "name": "Page_reload",
-    "description": "Reloads given page optionally ignoring the cache.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "ignoreCache": {
-          "description": "If true, browser cache is ignored (as if the user pressed Shift+refresh).",
-          "type": "boolean"
-        },
-        "scriptToEvaluateOnLoad": {
-          "description": "If set, the script will be injected into all frames of the inspected page after reload.\nArgument will be ignored if reloading dataURL origin.",
-          "type": "string"
-        }
-      },
-      "required": []
-    }
-  },
-  {
-    "name": "Page_removeScriptToEvaluateOnLoad",
-    "description": "Deprecated, please use removeScriptToEvaluateOnNewDocument instead.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "identifier": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "identifier"
-      ]
-    }
-  },
-  {
-    "name": "Page_removeScriptToEvaluateOnNewDocument",
-    "description": "Removes given script from the list.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "identifier": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "identifier"
-      ]
-    }
-  },
-  {
-    "name": "Page_screencastFrameAck",
-    "description": "Acknowledges that a screencast frame has been received by the frontend.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
         "sessionId": {
-          "description": "Frame number.",
-          "type": "integer"
+          "type": "number",
+          "description": "The sessionId to list sessions. Use `Device_listSessions` to get the ID."
         }
       },
       "required": [
+        "clientId",
         "sessionId"
       ]
     }
   },
   {
-    "name": "Page_searchInResource",
-    "description": "Searches for given string in resource content.",
-    "input_schema": {
+    "name": "JSB_listCalls",
+    "description": "Returns a list of all JSB calls for the given session.",
+    "inputSchema": {
       "type": "object",
       "properties": {
-        "frameId": {
-          "description": "Frame id for resource to search in.",
-          "type": "string"
-        },
-        "url": {
-          "description": "URL of the resource to search in.",
-          "type": "string"
-        },
-        "query": {
-          "description": "String to search for.",
-          "type": "string"
-        },
-        "caseSensitive": {
-          "description": "If true, search is case sensitive.",
-          "type": "boolean"
-        },
-        "isRegex": {
-          "description": "If true, treats string parameter as regex.",
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "frameId",
-        "url",
-        "query"
-      ]
-    }
-  },
-  {
-    "name": "Page_setAdBlockingEnabled",
-    "description": "Enable Chrome's experimental ad filter on all sites.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "enabled": {
-          "description": "Whether to block ads.",
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "enabled"
-      ]
-    }
-  },
-  {
-    "name": "Page_setBypassCSP",
-    "description": "Enable page Content Security Policy by-passing.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "enabled": {
-          "description": "Whether to bypass page CSP.",
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "enabled"
-      ]
-    }
-  },
-  {
-    "name": "Page_getPermissionsPolicyState",
-    "description": "Get Permissions Policy state on given frame.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "frameId": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "frameId"
-      ]
-    }
-  },
-  {
-    "name": "Page_setDeviceMetricsOverride",
-    "description": "Overrides the values of device screen dimensions (window.screen.width, window.screen.height,\nwindow.innerWidth, window.innerHeight, and \"device-width\"/\"device-height\"-related CSS media\nquery results).",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "width": {
-          "description": "Overriding width value in pixels (minimum 0, maximum 10000000). 0 disables the override.",
-          "type": "integer"
-        },
-        "height": {
-          "description": "Overriding height value in pixels (minimum 0, maximum 10000000). 0 disables the override.",
-          "type": "integer"
-        },
-        "deviceScaleFactor": {
-          "description": "Overriding device scale factor value. 0 disables the override.",
-          "type": "number"
-        },
-        "mobile": {
-          "description": "Whether to emulate mobile device. This includes viewport meta tag, overlay scrollbars, text\nautosizing and more.",
-          "type": "boolean"
-        },
-        "scale": {
-          "description": "Scale to apply to resulting view image.",
-          "type": "number"
-        },
-        "screenWidth": {
-          "description": "Overriding screen width value in pixels (minimum 0, maximum 10000000).",
-          "type": "integer"
-        },
-        "screenHeight": {
-          "description": "Overriding screen height value in pixels (minimum 0, maximum 10000000).",
-          "type": "integer"
-        },
-        "positionX": {
-          "description": "Overriding view X position on screen in pixels (minimum 0, maximum 10000000).",
-          "type": "integer"
-        },
-        "positionY": {
-          "description": "Overriding view Y position on screen in pixels (minimum 0, maximum 10000000).",
-          "type": "integer"
-        },
-        "dontSetVisibleSize": {
-          "description": "Do not set visible view size, rely upon explicit setVisibleSize call.",
-          "type": "boolean"
-        },
-        "screenOrientation": {
-          "description": "Screen orientation override.",
-          "type": "object"
-        },
-        "viewport": {
-          "description": "The viewport dimensions and scale. If not set, the override is cleared.",
-          "type": "object"
-        }
-      },
-      "required": [
-        "width",
-        "height",
-        "deviceScaleFactor",
-        "mobile"
-      ]
-    }
-  },
-  {
-    "name": "Page_setDeviceOrientationOverride",
-    "description": "Overrides the Device Orientation.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "alpha": {
-          "description": "Mock alpha",
-          "type": "number"
-        },
-        "beta": {
-          "description": "Mock beta",
-          "type": "number"
-        },
-        "gamma": {
-          "description": "Mock gamma",
-          "type": "number"
-        }
-      },
-      "required": [
-        "alpha",
-        "beta",
-        "gamma"
-      ]
-    }
-  },
-  {
-    "name": "Page_setFontFamilies",
-    "description": "Set generic font families.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "fontFamilies": {
-          "description": "Specifies font families to set. If a font family is not specified, it won't be changed.",
-          "type": "object"
-        }
-      },
-      "required": [
-        "fontFamilies"
-      ]
-    }
-  },
-  {
-    "name": "Page_setFontSizes",
-    "description": "Set default font sizes.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "fontSizes": {
-          "description": "Specifies font sizes to set. If a font size is not specified, it won't be changed.",
-          "type": "object"
-        }
-      },
-      "required": [
-        "fontSizes"
-      ]
-    }
-  },
-  {
-    "name": "Page_setDocumentContent",
-    "description": "Sets given markup as the document's HTML.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "frameId": {
-          "description": "Frame id to set HTML for.",
-          "type": "string"
-        },
-        "html": {
-          "description": "HTML content to set.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "frameId",
-        "html"
-      ]
-    }
-  },
-  {
-    "name": "Page_setDownloadBehavior",
-    "description": "Set the behavior when downloading a file.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "behavior": {
-          "description": "Whether to allow all or deny all download requests, or use default Chrome behavior if\navailable (otherwise deny).",
-          "type": "string"
-        },
-        "downloadPath": {
-          "description": "The default path to save downloaded files to. This is required if behavior is set to 'allow'",
-          "type": "string"
-        }
-      },
-      "required": [
-        "behavior"
-      ]
-    }
-  },
-  {
-    "name": "Page_setGeolocationOverride",
-    "description": "Overrides the Geolocation Position or Error. Omitting any of the parameters emulates position\nunavailable.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "latitude": {
-          "description": "Mock latitude",
-          "type": "number"
-        },
-        "longitude": {
-          "description": "Mock longitude",
-          "type": "number"
-        },
-        "accuracy": {
-          "description": "Mock accuracy",
-          "type": "number"
-        }
-      },
-      "required": []
-    }
-  },
-  {
-    "name": "Page_setLifecycleEventsEnabled",
-    "description": "Controls whether page will emit lifecycle events.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "enabled": {
-          "description": "If true, starts emitting lifecycle events.",
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "enabled"
-      ]
-    }
-  },
-  {
-    "name": "Page_setTouchEmulationEnabled",
-    "description": "Toggles mouse event-based touch event emulation.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "enabled": {
-          "description": "Whether the touch event emulation should be enabled.",
-          "type": "boolean"
-        },
-        "configuration": {
-          "description": "Touch/gesture events configuration. Default: current platform.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "enabled"
-      ]
-    }
-  },
-  {
-    "name": "Page_startScreencast",
-    "description": "Starts sending each frame using the `screencastFrame` event.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "format": {
-          "description": "Image compression format.",
-          "type": "string"
-        },
-        "quality": {
-          "description": "Compression quality from range [0..100].",
-          "type": "integer"
-        },
-        "maxWidth": {
-          "description": "Maximum screenshot width.",
-          "type": "integer"
-        },
-        "maxHeight": {
-          "description": "Maximum screenshot height.",
-          "type": "integer"
-        },
-        "everyNthFrame": {
-          "description": "Send every n-th frame.",
-          "type": "integer"
-        }
-      },
-      "required": []
-    }
-  },
-  {
-    "name": "Page_stopLoading",
-    "description": "Force the page stop all navigations and pending resource fetches.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Page_crash",
-    "description": "Crashes renderer on the IO thread, generates minidumps.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Page_close",
-    "description": "Tries to close page, running its beforeunload hooks, if any.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Page_setWebLifecycleState",
-    "description": "Tries to update the web lifecycle state of the page.\nIt will transition the page to the given state according to:\nhttps://github.com/WICG/web-lifecycle/",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "state": {
-          "description": "Target lifecycle state",
-          "type": "string"
-        }
-      },
-      "required": [
-        "state"
-      ]
-    }
-  },
-  {
-    "name": "Page_stopScreencast",
-    "description": "Stops sending each frame in the `screencastFrame`.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Page_setProduceCompilationCache",
-    "description": "Forces compilation cache to be generated for every subresource script.\nSee also: `Page.produceCompilationCache`.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "enabled": {
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "enabled"
-      ]
-    }
-  },
-  {
-    "name": "Page_produceCompilationCache",
-    "description": "Requests backend to produce compilation cache for the specified scripts.\nUnlike setProduceCompilationCache, this allows client to only produce cache\nfor specific scripts. `scripts` are appeneded to the list of scripts\nfor which the cache for would produced. Disabling compilation cache with\n`setProduceCompilationCache` would reset all pending cache requests.\nThe list may also be reset during page navigation.\nWhen script with a matching URL is encountered, the cache is optionally\nproduced upon backend discretion, based on internal heuristics.\nSee also: `Page.compilationCacheProduced`.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "scripts": {
-          "type": "array"
-        }
-      },
-      "required": [
-        "scripts"
-      ]
-    }
-  },
-  {
-    "name": "Page_addCompilationCache",
-    "description": "Seeds compilation cache for given url. Compilation cache does not survive\ncross-process navigation.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "url": {
-          "type": "string"
-        },
-        "data": {
-          "description": "Base64-encoded data (Encoded as a base64 string when passed over JSON)",
-          "type": "string"
-        }
-      },
-      "required": [
-        "url",
-        "data"
-      ]
-    }
-  },
-  {
-    "name": "Page_clearCompilationCache",
-    "description": "Clears seeded compilation cache.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Page_generateTestReport",
-    "description": "Generates a report for testing.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "message": {
-          "description": "Message to be displayed in the report.",
-          "type": "string"
-        },
-        "group": {
-          "description": "Specifies the endpoint group to deliver the report to.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "message"
-      ]
-    }
-  },
-  {
-    "name": "Page_waitForDebugger",
-    "description": "Pauses page execution. Can be resumed using generic Runtime.runIfWaitingForDebugger.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Page_setInterceptFileChooserDialog",
-    "description": "Intercept file chooser requests and transfer control to protocol clients.\nWhen file chooser interception is enabled, native file chooser dialog is not shown.\nInstead, a protocol event `Page.fileChooserOpened` is emitted.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "enabled": {
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "enabled"
-      ]
-    }
-  },
-  {
-    "name": "Target_activateTarget",
-    "description": "Activates (focuses) the target.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "targetId": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "targetId"
-      ]
-    }
-  },
-  {
-    "name": "Target_attachToTarget",
-    "description": "Attaches to the target with given id.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "targetId": {
-          "type": "string"
-        },
-        "flatten": {
-          "description": "Enables \"flat\" access to the session via specifying sessionId attribute in the commands.\nWe plan to make this the default, deprecate non-flattened mode,\nand eventually retire it. See crbug.com/991325.",
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "targetId"
-      ]
-    }
-  },
-  {
-    "name": "Target_attachToBrowserTarget",
-    "description": "Attaches to the browser target, only uses flat sessionId mode.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Target_closeTarget",
-    "description": "Closes the target. If the target is a page that gets closed too.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "targetId": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "targetId"
-      ]
-    }
-  },
-  {
-    "name": "Target_exposeDevToolsProtocol",
-    "description": "Inject object to the target's main frame that provides a communication\nchannel with browser target.\n\nInjected object will be available as `window[bindingName]`.\n\nThe object has the follwing API:\n- `binding.send(json)` - a method to send messages over the remote debugging protocol\n- `binding.onmessage = json => handleMessage(json)` - a callback that will be called for the protocol notifications and command responses.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "targetId": {
-          "type": "string"
-        },
-        "bindingName": {
-          "description": "Binding name, 'cdp' if not specified.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "targetId"
-      ]
-    }
-  },
-  {
-    "name": "Target_createBrowserContext",
-    "description": "Creates a new empty BrowserContext. Similar to an incognito profile but you can have more than\none.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "disposeOnDetach": {
-          "description": "If specified, disposes this context when debugging session disconnects.",
-          "type": "boolean"
-        },
-        "proxyServer": {
-          "description": "Proxy server, similar to the one passed to --proxy-server",
-          "type": "string"
-        },
-        "proxyBypassList": {
-          "description": "Proxy bypass list, similar to the one passed to --proxy-bypass-list",
-          "type": "string"
-        }
-      },
-      "required": []
-    }
-  },
-  {
-    "name": "Target_getBrowserContexts",
-    "description": "Returns all browser contexts created with `Target.createBrowserContext` method.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Target_createTarget",
-    "description": "Creates a new page.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "url": {
-          "description": "The initial URL the page will be navigated to. An empty string indicates about:blank.",
-          "type": "string"
-        },
-        "width": {
-          "description": "Frame width in DIP (headless chrome only).",
-          "type": "integer"
-        },
-        "height": {
-          "description": "Frame height in DIP (headless chrome only).",
-          "type": "integer"
-        },
-        "browserContextId": {
-          "description": "The browser context to create the page in.",
-          "type": "string"
-        },
-        "enableBeginFrameControl": {
-          "description": "Whether BeginFrames for this target will be controlled via DevTools (headless chrome only,\nnot supported on MacOS yet, false by default).",
-          "type": "boolean"
-        },
-        "newWindow": {
-          "description": "Whether to create a new Window or Tab (chrome-only, false by default).",
-          "type": "boolean"
-        },
-        "background": {
-          "description": "Whether to create the target in background or foreground (chrome-only,\nfalse by default).",
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "url"
-      ]
-    }
-  },
-  {
-    "name": "Target_detachFromTarget",
-    "description": "Detaches session with given id.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "sessionId": {
-          "description": "Session to detach.",
-          "type": "string"
-        },
-        "targetId": {
-          "description": "Deprecated.",
-          "type": "string"
-        }
-      },
-      "required": []
-    }
-  },
-  {
-    "name": "Target_disposeBrowserContext",
-    "description": "Deletes a BrowserContext. All the belonging pages will be closed without calling their\nbeforeunload hooks.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "browserContextId": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "browserContextId"
-      ]
-    }
-  },
-  {
-    "name": "Target_getTargetInfo",
-    "description": "Returns information about a target.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "targetId": {
-          "type": "string"
-        }
-      },
-      "required": []
-    }
-  },
-  {
-    "name": "Target_getTargets",
-    "description": "Retrieves a list of available targets.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Target_sendMessageToTarget",
-    "description": "Sends protocol message over session with given id.\nConsider using flat mode instead; see commands attachToTarget, setAutoAttach,\nand crbug.com/991325.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "message": {
-          "type": "string"
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
         },
         "sessionId": {
-          "description": "Identifier of the session.",
-          "type": "string"
-        },
-        "targetId": {
-          "description": "Deprecated.",
-          "type": "string"
+          "type": "number",
+          "description": "The sessionId to list sessions. Use `Device_listSessions` to get the ID."
         }
       },
       "required": [
-        "message"
+        "clientId",
+        "sessionId"
       ]
     }
   },
   {
-    "name": "Target_setAutoAttach",
-    "description": "Controls whether to automatically attach to new targets which are considered to be related to\nthis one. When turned on, attaches to all existing related targets as well. When turned off,\nautomatically detaches from all currently attached targets.",
-    "input_schema": {
+    "name": "JSB_listEvents",
+    "description": "Returns a list of all JSB events for the given session.",
+    "inputSchema": {
       "type": "object",
       "properties": {
-        "autoAttach": {
-          "description": "Whether to auto-attach to related targets.",
-          "type": "boolean"
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
         },
-        "waitForDebuggerOnStart": {
-          "description": "Whether to pause new targets when attaching to them. Use `Runtime.runIfWaitingForDebugger`\nto run paused targets.",
-          "type": "boolean"
-        },
-        "flatten": {
-          "description": "Enables \"flat\" access to the session via specifying sessionId attribute in the commands.\nWe plan to make this the default, deprecate non-flattened mode,\nand eventually retire it. See crbug.com/991325.",
-          "type": "boolean"
+        "sessionId": {
+          "type": "number",
+          "description": "The sessionId to list sessions. Use `Device_listSessions` to get the ID."
         }
       },
       "required": [
-        "autoAttach",
-        "waitForDebuggerOnStart"
+        "clientId",
+        "sessionId"
       ]
     }
   },
   {
-    "name": "Target_setDiscoverTargets",
-    "description": "Controls whether to discover available targets and notify via\n`targetCreated/targetInfoChanged/targetDestroyed` events.",
-    "input_schema": {
+    "name": "Page_reload",
+    "description": "Reload the current page.",
+    "inputSchema": {
       "type": "object",
       "properties": {
-        "discover": {
-          "description": "Whether to discover available targets.",
-          "type": "boolean"
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
+        },
+        "sessionId": {
+          "type": "number",
+          "description": "The sessionId to list sessions. Use `Device_listSessions` to get the ID."
+        },
+        "url": {
+          "type": "string",
+          "description": "The URL to reload, if different from the current page. Optional."
+        },
+        "ignoreCache": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether to ignore the cache when reloading the page. Defaults to `true`"
         }
       },
       "required": [
-        "discover"
+        "clientId",
+        "sessionId"
       ]
     }
   },
   {
-    "name": "Target_setRemoteLocations",
-    "description": "Enables target discovery for the specified locations, when `setDiscoverTargets` was set to\n`true`.",
-    "input_schema": {
+    "name": "Page_takeScreenshot",
+    "description": "Take a screenshot of the current page.",
+    "inputSchema": {
       "type": "object",
       "properties": {
-        "locations": {
-          "description": "List of remote locations.",
-          "type": "array"
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
+        },
+        "sessionId": {
+          "type": "number",
+          "description": "The sessionId to list sessions. Use `Device_listSessions` to get the ID."
         }
       },
       "required": [
-        "locations"
+        "clientId",
+        "sessionId"
       ]
     }
   },
   {
-    "name": "Runtime_awaitPromise",
-    "description": "Add handler to promise with given promise object id.",
-    "input_schema": {
+    "name": "PIA_getAllStatus",
+    "description": "Get all features status(prefetch / snapshot / nsr / ssr / preload_html / preload_res etc.) of a PIA page.",
+    "inputSchema": {
       "type": "object",
       "properties": {
-        "promiseObjectId": {
-          "description": "Identifier of the promise.",
-          "type": "string"
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
         },
-        "returnByValue": {
-          "description": "Whether the result is expected to be a JSON object that should be sent by value.",
-          "type": "boolean"
+        "sessionId": {
+          "type": "number",
+          "description": "The sessionId to list sessions. Use `Device_listSessions` to get the ID."
         },
-        "generatePreview": {
-          "description": "Whether preview should be generated for the result.",
-          "type": "boolean"
+        "statusType": {
+          "type": "string",
+          "enum": ["prefetch", "snapshot", "nsr", "ssr", "preload_html", "preload_res"],
+          "description": "One of the status types: prefetch / snapshot / nsr / ssr / preload_html / preload_res."
         }
       },
       "required": [
-        "promiseObjectId"
+        "clientId",
+        "sessionId",
+        "statusType"
       ]
     }
   },
   {
-    "name": "Runtime_callFunctionOn",
-    "description": "Calls function with given declaration on the given object. Object group of the result is\ninherited from the target object.",
-    "input_schema": {
+    "name": "PIA_getAllTiming",
+    "description": "Get all metric time durations(FR3 / PPE / FCP ..etc) of a PIA page",
+    "inputSchema": {
       "type": "object",
       "properties": {
-        "functionDeclaration": {
-          "description": "Declaration of the function to call.",
-          "type": "string"
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
         },
-        "objectId": {
-          "description": "Identifier of the object to call function on. Either objectId or executionContextId should\nbe specified.",
-          "type": "string"
-        },
-        "arguments": {
-          "description": "Call arguments. All call arguments must belong to the same JavaScript world as the target\nobject.",
-          "type": "array"
-        },
-        "silent": {
-          "description": "In silent mode exceptions thrown during evaluation are not reported and do not pause\nexecution. Overrides `setPauseOnException` state.",
-          "type": "boolean"
-        },
-        "returnByValue": {
-          "description": "Whether the result is expected to be a JSON object which should be sent by value.",
-          "type": "boolean"
-        },
-        "generatePreview": {
-          "description": "Whether preview should be generated for the result.",
-          "type": "boolean"
-        },
-        "userGesture": {
-          "description": "Whether execution should be treated as initiated by user in the UI.",
-          "type": "boolean"
-        },
-        "awaitPromise": {
-          "description": "Whether execution should `await` for resulting value and return once awaited promise is\nresolved.",
-          "type": "boolean"
-        },
-        "executionContextId": {
-          "description": "Specifies execution context which global object will be used to call function on. Either\nexecutionContextId or objectId should be specified.",
-          "type": "integer"
-        },
-        "objectGroup": {
-          "description": "Symbolic group name that can be used to release multiple objects. If objectGroup is not\nspecified and objectId is, objectGroup will be inherited from object.",
-          "type": "string"
+        "sessionId": {
+          "type": "number",
+          "description": "The sessionId to list sessions. Use `Device_listSessions` to get the ID."
         }
       },
       "required": [
-        "functionDeclaration"
+        "clientId",
+        "sessionId"
       ]
     }
   },
   {
-    "name": "Runtime_compileScript",
-    "description": "Compiles expression.",
-    "input_schema": {
+    "name": "PIA_getGlobalProps",
+    "description": "Get global props of a PIA page.",
+    "inputSchema": {
       "type": "object",
       "properties": {
-        "expression": {
-          "description": "Expression to compile.",
-          "type": "string"
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
         },
-        "sourceURL": {
-          "description": "Source url to be set for the script.",
-          "type": "string"
-        },
-        "persistScript": {
-          "description": "Specifies whether the compiled script should be persisted.",
-          "type": "boolean"
-        },
-        "executionContextId": {
-          "description": "Specifies in which execution context to perform script run. If the parameter is omitted the\nevaluation will be performed in the context of the inspected page.",
-          "type": "integer"
+        "sessionId": {
+          "type": "number",
+          "description": "The sessionId to list sessions. Use `Device_listSessions` to get the ID."
         }
       },
       "required": [
-        "expression",
-        "sourceURL",
-        "persistScript"
+        "clientId",
+        "sessionId"
       ]
     }
   },
   {
-    "name": "Runtime_disable",
-    "description": "Disables reporting of execution contexts creation.",
-    "input_schema": {
+    "name": "PIA_getManifestInfo",
+    "description": "Get manifest info of a PIA page.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
+        },
+        "sessionId": {
+          "type": "number",
+          "description": "The sessionId to list sessions. Use `Device_listSessions` to get the ID."
+        }
+      },
+      "required": [
+        "clientId",
+        "sessionId"
+      ]
+    }
+  },
+  {
+    "name": "PIA_getOriginalUrl",
+    "description": "Get original URL of a PIA page.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
+        },
+        "sessionId": {
+          "type": "number",
+          "description": "The sessionId to list sessions. Use `Device_listSessions` to get the ID."
+        }
+      },
+      "required": [
+        "clientId",
+        "sessionId"
+      ]
+    }
+  },
+  {
+    "name": "PIA_invokeJSB",
+    "description": "Invoke JSB in current page.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
+        },
+        "methodName": {
+          "type": "string",
+          "description": "The name of the JSB method to invoke."
+        },
+        "methodInput": {
+          "type": "string",
+          "description": "The input of the JSB method, JSON string."
+        }
+      },
+      "required": [
+        "clientId",
+        "methodName",
+        "methodInput"
+      ]
+    }
+  },
+  {
+    "name": "PIA_listJSBRecord",
+    "description": "List invoked JSB records in current page.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
+        },
+        "methodNames": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "clientId",
+        "methodNames"
+      ]
+    }
+  },
+  {
+    "name": "PIA_listPIALog",
+    "description": "List client sdk logs with PIA tags in current page.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
+        }
+      },
+      "required": [
+        "clientId"
+      ]
+    }
+  },
+  {
+    "name": "PIA_switchForceEnableFeatures",
+    "description": "Set whether to force enable all PIA features(previously named 'Disable all PIA Settings') in the global switch.",
+    "inputSchema": {
       "type": "object",
       "properties": {},
       "required": []
     }
   },
   {
-    "name": "Runtime_discardConsoleEntries",
-    "description": "Discards collected exceptions and console API calls.",
-    "input_schema": {
+    "name": "PIA_switchForceOutMode",
+    "description": "Set whether to force entry into PIA out-sdk mode in the global switch.",
+    "inputSchema": {
       "type": "object",
       "properties": {},
       "required": []
     }
   },
   {
-    "name": "Runtime_enable",
-    "description": "Enables reporting of execution contexts creation by means of `executionContextCreated` event.\nWhen the reporting gets enabled the event will be sent immediately for each existing execution\ncontext.",
-    "input_schema": {
+    "name": "PIA_switchShowPIAConsole",
+    "description": "Set whether to show PIA draggable console panel on screen in the global switch.",
+    "inputSchema": {
       "type": "object",
       "properties": {},
       "required": []
     }
   },
   {
-    "name": "Runtime_evaluate",
-    "description": "Evaluates expression on global object.",
-    "input_schema": {
+    "name": "Runtime_listConsole",
+    "description": "List all console messages.",
+    "inputSchema": {
       "type": "object",
       "properties": {
-        "expression": {
-          "description": "Expression to evaluate.",
-          "type": "string"
+        "clientId": {
+          "type": "string",
+          "description": "The clientId to list sessions. Use `Device_listClients` to get the ID. If somehow no clients are found, tool `Device_openApp` (sometimes unavailable) may help."
         },
-        "objectGroup": {
-          "description": "Symbolic group name that can be used to release multiple objects.",
-          "type": "string"
+        "sessionId": {
+          "type": "number",
+          "description": "The sessionId to list sessions. Use `Device_listSessions` to get the ID."
         },
-        "includeCommandLineAPI": {
-          "description": "Determines whether Command Line API should be available during the evaluation.",
-          "type": "boolean"
+        "offset": {
+          "type": "number",
+          "description": "The number of console messages to skip before returning results."
         },
-        "silent": {
-          "description": "In silent mode exceptions thrown during evaluation are not reported and do not pause\nexecution. Overrides `setPauseOnException` state.",
-          "type": "boolean"
+        "limit": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 100,
+          "description": "The maximum number of console messages to return."
         },
-        "contextId": {
-          "description": "Specifies in which execution context to perform evaluation. If the parameter is omitted the\nevaluation will be performed in the context of the inspected page.\nThis is mutually exclusive with `uniqueContextId`, which offers an\nalternative way to identify the execution context that is more reliable\nin a multi-process environment.",
-          "type": "integer"
+        "includeStackTraces": {
+          "type": "boolean",
+          "description": "By default, only error messages would contain stack traces. Set this to true to include stack traces for all messages in the output."
         },
-        "returnByValue": {
-          "description": "Whether the result is expected to be a JSON object that should be sent by value.",
-          "type": "boolean"
-        },
-        "generatePreview": {
-          "description": "Whether preview should be generated for the result.",
-          "type": "boolean"
-        },
-        "userGesture": {
-          "description": "Whether execution should be treated as initiated by user in the UI.",
-          "type": "boolean"
-        },
-        "awaitPromise": {
-          "description": "Whether execution should `await` for resulting value and return once awaited promise is\nresolved.",
-          "type": "boolean"
-        },
-        "throwOnSideEffect": {
-          "description": "Whether to throw an exception if side effect cannot be ruled out during evaluation.\nThis implies `disableBreaks` below.",
-          "type": "boolean"
-        },
-        "timeout": {
-          "description": "Terminate execution after timing out (number of milliseconds).",
-          "type": "number"
-        },
-        "disableBreaks": {
-          "description": "Disable breakpoints during execution.",
-          "type": "boolean"
-        },
-        "replMode": {
-          "description": "Setting this flag to true enables `let` re-declaration and top-level `await`.\nNote that `let` variables can only be re-declared if they originate from\n`replMode` themselves.",
-          "type": "boolean"
-        },
-        "allowUnsafeEvalBlockedByCSP": {
-          "description": "The Content Security Policy (CSP) for the target might block 'unsafe-eval'\nwhich includes eval(), Function(), setTimeout() and setInterval()\nwhen called with non-callable arguments. This flag bypasses CSP for this\nevaluation and allows unsafe-eval. Defaults to true.",
-          "type": "boolean"
-        },
-        "uniqueContextId": {
-          "description": "An alternative way to specify the execution context to evaluate in.\nCompared to contextId that may be reused accross processes, this is guaranteed to be\nsystem-unique, so it can be used to prevent accidental evaluation of the expression\nin context different than intended (e.g. as a result of navigation accross process\nboundaries).\nThis is mutually exclusive with `contextId`.",
-          "type": "string"
+        "level": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["log", "info", "warning", "error", "debug"]
+          },
+          "description": "The log level to filter messages. Defaults to ['info', 'log', 'warning', 'error']"
         }
       },
       "required": [
-        "expression"
-      ]
-    }
-  },
-  {
-    "name": "Runtime_getIsolateId",
-    "description": "Returns the isolate id.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Runtime_getHeapUsage",
-    "description": "Returns the JavaScript heap usage.\nIt is the total usage of the corresponding isolate not scoped to a particular Runtime.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Runtime_getProperties",
-    "description": "Returns properties of a given object. Object group of the result is inherited from the target\nobject.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "objectId": {
-          "description": "Identifier of the object to return properties for.",
-          "type": "string"
-        },
-        "ownProperties": {
-          "description": "If true, returns properties belonging only to the element itself, not to its prototype\nchain.",
-          "type": "boolean"
-        },
-        "accessorPropertiesOnly": {
-          "description": "If true, returns accessor properties (with getter/setter) only; internal properties are not\nreturned either.",
-          "type": "boolean"
-        },
-        "generatePreview": {
-          "description": "Whether preview should be generated for the results.",
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "objectId"
-      ]
-    }
-  },
-  {
-    "name": "Runtime_globalLexicalScopeNames",
-    "description": "Returns all let, const and class variables from global scope.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "executionContextId": {
-          "description": "Specifies in which execution context to lookup global scope variables.",
-          "type": "integer"
-        }
-      },
-      "required": []
-    }
-  },
-  {
-    "name": "Runtime_queryObjects",
-    "description": "Execute Runtime.queryObjects",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "prototypeObjectId": {
-          "description": "Identifier of the prototype to return objects for.",
-          "type": "string"
-        },
-        "objectGroup": {
-          "description": "Symbolic group name that can be used to release the results.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "prototypeObjectId"
-      ]
-    }
-  },
-  {
-    "name": "Runtime_releaseObject",
-    "description": "Releases remote object with given id.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "objectId": {
-          "description": "Identifier of the object to release.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "objectId"
-      ]
-    }
-  },
-  {
-    "name": "Runtime_releaseObjectGroup",
-    "description": "Releases all remote objects that belong to a given group.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "objectGroup": {
-          "description": "Symbolic object group name.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "objectGroup"
-      ]
-    }
-  },
-  {
-    "name": "Runtime_runIfWaitingForDebugger",
-    "description": "Tells inspected instance to run if it was waiting for debugger to attach.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Runtime_runScript",
-    "description": "Runs script with given id in a given context.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "scriptId": {
-          "description": "Id of the script to run.",
-          "type": "string"
-        },
-        "executionContextId": {
-          "description": "Specifies in which execution context to perform script run. If the parameter is omitted the\nevaluation will be performed in the context of the inspected page.",
-          "type": "integer"
-        },
-        "objectGroup": {
-          "description": "Symbolic group name that can be used to release multiple objects.",
-          "type": "string"
-        },
-        "silent": {
-          "description": "In silent mode exceptions thrown during evaluation are not reported and do not pause\nexecution. Overrides `setPauseOnException` state.",
-          "type": "boolean"
-        },
-        "includeCommandLineAPI": {
-          "description": "Determines whether Command Line API should be available during the evaluation.",
-          "type": "boolean"
-        },
-        "returnByValue": {
-          "description": "Whether the result is expected to be a JSON object which should be sent by value.",
-          "type": "boolean"
-        },
-        "generatePreview": {
-          "description": "Whether preview should be generated for the result.",
-          "type": "boolean"
-        },
-        "awaitPromise": {
-          "description": "Whether execution should `await` for resulting value and return once awaited promise is\nresolved.",
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "scriptId"
-      ]
-    }
-  },
-  {
-    "name": "Runtime_setAsyncCallStackDepth",
-    "description": "Enables or disables async call stacks tracking.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "maxDepth": {
-          "description": "Maximum depth of async call stacks. Setting to `0` will effectively disable collecting async\ncall stacks (default).",
-          "type": "integer"
-        }
-      },
-      "required": [
-        "maxDepth"
-      ]
-    }
-  },
-  {
-    "name": "Runtime_setCustomObjectFormatterEnabled",
-    "description": "Execute Runtime.setCustomObjectFormatterEnabled",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "enabled": {
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "enabled"
-      ]
-    }
-  },
-  {
-    "name": "Runtime_setMaxCallStackSizeToCapture",
-    "description": "Execute Runtime.setMaxCallStackSizeToCapture",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "size": {
-          "type": "integer"
-        }
-      },
-      "required": [
-        "size"
-      ]
-    }
-  },
-  {
-    "name": "Runtime_terminateExecution",
-    "description": "Terminate current or next JavaScript execution.\nWill cancel the termination when the outer-most script execution ends.",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  {
-    "name": "Runtime_addBinding",
-    "description": "If executionContextId is empty, adds binding with the given name on the\nglobal objects of all inspected contexts, including those created later,\nbindings survive reloads.\nBinding function takes exactly one argument, this argument should be string,\nin case of any other input, function throws an exception.\nEach binding function call produces Runtime.bindingCalled notification.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "executionContextId": {
-          "description": "If specified, the binding would only be exposed to the specified\nexecution context. If omitted and `executionContextName` is not set,\nthe binding is exposed to all execution contexts of the target.\nThis parameter is mutually exclusive with `executionContextName`.",
-          "type": "integer"
-        },
-        "executionContextName": {
-          "description": "If specified, the binding is exposed to the executionContext with\nmatching name, even for contexts created after the binding is added.\nSee also `ExecutionContext.name` and `worldName` parameter to\n`Page.addScriptToEvaluateOnNewDocument`.\nThis parameter is mutually exclusive with `executionContextId`.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "name"
-      ]
-    }
-  },
-  {
-    "name": "Runtime_removeBinding",
-    "description": "This method does not remove binding function from global object but\nunsubscribes current runtime agent from Runtime.bindingCalled notifications.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "name"
-      ]
-    }
-  },
-  {
-    "name": "Lynx_getComponentId",
-    "description": "Get the component ID for a given node.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "nodeId": {
-          "description": "Id of the node to get component Id for.",
-          "type": "integer"
-        }
-      },
-      "required": [
-        "nodeId"
-      ]
-    }
-  },
-  {
-    "name": "Lynx_getProperties",
-    "description": "Get properties of a Lynx node.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "nodeId": {
-          "description": "Id of the node.",
-          "type": "integer"
-        }
-      },
-      "required": [
-        "nodeId"
-      ]
-    }
-  },
-  {
-    "name": "Lynx_getData",
-    "description": "Get data associated with a Lynx node.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "nodeId": {
-          "description": "Id of the node.",
-          "type": "integer"
-        }
-      },
-      "required": [
-        "nodeId"
-      ]
-    }
-  },
-  {
-    "name": "Lynx_setTraceMode",
-    "description": "Set trace mode for Lynx.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "mode": {
-          "description": "Trace mode.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "mode"
+        "clientId",
+        "sessionId"
       ]
     }
   }

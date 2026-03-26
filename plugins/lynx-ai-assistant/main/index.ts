@@ -31,9 +31,16 @@ const bridge = (context: MainContext) => ({
   },
 
   // AI Chat
-  async sendMessage(message: string, options?: { includeDebugContext?: boolean; mcpTools?: string[] }) {
+  async sendMessage(
+    message: string,
+    options?: {
+      includeDebugContext?: boolean;
+      mcpTools?: string[];
+      target?: { clientId?: string; sessionId?: number };
+    }
+  ) {
     const context = options?.includeDebugContext ? await debugContextCollector.collectContext() : undefined;
-    return aiService.sendMessage(message, { context, mcpTools: options?.mcpTools });
+    return aiService.sendMessage(message, { context, mcpTools: options?.mcpTools, target: options?.target });
   },
 
   async getConversationHistory() {
@@ -76,10 +83,10 @@ export default definePlugin<AIAssistantBridgeType>({
     
     // Initialize services
     mcpClientManager = new MCPClientManager();
-    aiService = new AIService(mcpClientManager, async (method, params) => {
+    aiService = new AIService(mcpClientManager, async (method, params, type = 'CDP') => {
       return context.invokePluginEvent({
         eventName: 'EXECUTE_CDP_COMMAND',
-        params: { method, params }
+        params: { method, params, type }
       });
     });
     debugContextCollector = new DebugContextCollector(context);
@@ -95,10 +102,10 @@ export default definePlugin<AIAssistantBridgeType>({
     debugContextCollector?.stopAutoCollection();
     
     mcpClientManager = new MCPClientManager();
-    aiService = new AIService(mcpClientManager, async (method, params) => {
+    aiService = new AIService(mcpClientManager, async (method, params, type = 'CDP') => {
       return context.invokePluginEvent({
         eventName: 'EXECUTE_CDP_COMMAND',
-        params: { method, params }
+        params: { method, params, type }
       });
     });
     debugContextCollector = new DebugContextCollector(context);

@@ -101,6 +101,13 @@ export default function RendererPluginView(props: { plugins: any[] }) {
     };
   }, []);
 
+  useEffect(() => {
+    const plugin = filteredPlugins.find((p) => p.id === 'lynx-ai-assistant');
+    if (plugin) {
+      produceComponent(plugin);
+    }
+  }, [filteredPlugins]);
+
   usePluginUsageTracker(currentPluginId);
 
   return (

@@ -231,6 +231,56 @@ export class ElementsPanel extends UI.Panel.Panel implements UI.SearchableView.S
 
     crumbsContainer.appendChild(this._breadcrumbs);
 
+    const aiBar = document.createElement('div');
+    aiBar.style.setProperty('display', 'flex');
+    aiBar.style.setProperty('gap', '6px');
+    aiBar.style.setProperty('align-items', 'center');
+    aiBar.style.setProperty('padding', '6px 0');
+
+    const aiInput = document.createElement('input');
+    aiInput.type = 'text';
+    aiInput.placeholder = 'Ask AI about selected node';
+    aiInput.style.setProperty('flex', '1');
+    aiInput.style.setProperty('min-width', '120px');
+
+    const aiButton = document.createElement('button');
+    aiButton.textContent = 'Ask AI';
+    aiButton.classList.add('axtree-button');
+
+    const submitAi = (): void => {
+      const question = aiInput.value.trim();
+      if (!question) {
+        return;
+      }
+      const node = this.selectedDOMNode();
+      if (!node) {
+        return;
+      }
+      window.parent.postMessage({
+        type: 'lynx-ai-elements-request',
+        content: {
+          question,
+          nodeId: node.id,
+        },
+      }, '*');
+      aiInput.value = '';
+    };
+
+    aiButton.addEventListener('click', (event) => {
+      event.stopPropagation();
+      submitAi();
+    });
+    aiInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.stopPropagation();
+        submitAi();
+      }
+    });
+
+    aiBar.appendChild(aiInput);
+    aiBar.appendChild(aiButton);
+    crumbsContainer.appendChild(aiBar);
+
     this._stylesWidget = StylesSidebarPane.instance();
     this._computedStyleWidget = new ComputedStyleWidget();
     this._metricsWidget = new MetricsSidebarPane();

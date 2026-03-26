@@ -2,8 +2,8 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
 
-import { Client } from '@modelcontextprotocol/sdk/client/index';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { spawn, ChildProcess } from 'child_process';
 
 export interface MCPServerConfig {
@@ -90,6 +90,10 @@ export class MCPClientManager {
         id = serverId; // Reuse existing ID
         break;
       }
+    }
+
+    if (existingServer?.status === 'connected') {
+      return { success: true };
     }
     
     try {

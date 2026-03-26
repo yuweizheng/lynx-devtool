@@ -27,8 +27,39 @@ import { LDT_DIR } from '../utils/const';
 import { EnvLogManager } from '@lynx-js/lynx-devtool-cli';
 import { EnvLogClient } from '@lynx-js/lynx-devtool-cli/src/types/envLog';
 import fs from 'fs';
+import http from 'http';
 
 const {meta} = require('virtualModules');
+
+// #region debug-point
+const reportDbg = (payload: Record<string, any>) => {
+  try {
+    const body = JSON.stringify({
+      sessionId: 'lynx-ai-assistant-device-tools',
+      runId: 'pre-fix',
+      hypothesisId: payload.hypothesisId ?? 'H?',
+      msg: payload.msg ?? 'main-plugin-manager',
+      ts: Date.now(),
+      data: payload.data ?? payload
+    });
+    const req = http.request(
+      {
+        hostname: '127.0.0.1',
+        port: 17777,
+        path: '/event',
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
+      },
+      (res) => {
+        res.resume();
+      }
+    );
+    req.on('error', () => {});
+    req.write(body);
+    req.end();
+  } catch (_) {}
+};
+// #endregion debug-point
 
 const INTERNAL_MAIN_PLUGINS = meta;
 type PluginMeta = {
@@ -61,7 +92,10 @@ export default class PluginManager {
   private context: MainContext & { window: BrowserWindow | null };
   private pluginEnvLoggerMap: Map<string, EnvLogClient>;
   private messageIndex = 1;
-  private customEventResponseMap = new Map<number, { resolve: (value: any) => void; timer: any }>();
+  private customEventResponseMap = new Map<
+    number,
+    { resolve: (value: any) => void; reject: (reason?: any) => void; timer: any }
+  >();
   private cacheCustemEvents: PluginEvent[] = [];
   private renderInitialized = false;
 
@@ -107,13 +141,26 @@ export default class PluginManager {
     ipcMain.handle(PLUGIN_EVENT_GET_ALL_PLUGINS, () => {
       return this.context.plugin;
     });
-    ipcMain.handle(PLUGIN_EVENT_CUSTOM_EVENT_RESPONSE, (_, { id, data }) => {
-      const { resolve, timer } = this.customEventResponseMap.get(id) ?? {};
-      if (resolve) {
-        resolve(data);
+    ipcMain.handle(PLUGIN_EVENT_CUSTOM_EVENT_RESPONSE, (_, { id, data, error }) => {
+      const record = this.customEventResponseMap.get(id);
+      if (!record) {
+        return;
       }
+      const { resolve, reject, timer } = record;
       if (timer) {
         clearTimeout(timer);
+      }
+      // #region debug-point
+      reportDbg({
+        hypothesisId: 'H3',
+        msg: 'invokePluginEvent.response',
+        data: { id, hasError: !!error, error: error ? String(error) : undefined }
+      });
+      // #endregion debug-point
+      if (error) {
+        reject(new Error(error));
+      } else {
+        resolve(data);
       }
       this.customEventResponseMap.delete(id);
     });
@@ -304,13 +351,32 @@ export default class PluginManager {
     const id = this.messageIndex++;
     event.id = id;
     event.isAsync = true;
+    // #region debug-point
+    reportDbg({
+      hypothesisId: 'H2',
+      msg: 'invokePluginEvent.send',
+      data: {
+        id,
+        eventName: event.eventName,
+        pluginId: (event as any).pluginId,
+        timeout: event.timeout ?? 30000
+      }
+    });
+    // #endregion debug-point
     this.publishPluginEvent(event);
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
+        // #region debug-point
+        reportDbg({
+          hypothesisId: 'H2',
+          msg: 'invokePluginEvent.timeout',
+          data: { id, eventName: event.eventName, pluginId: (event as any).pluginId }
+        });
+        // #endregion debug-point
         reject(new Error('invokePluginEvent timeout'));
         this.customEventResponseMap.delete(id);
       }, event.timeout || 30000);
-      this.customEventResponseMap.set(id, { resolve, timer });
+      this.customEventResponseMap.set(id, { resolve, reject, timer });
     });
   }
 

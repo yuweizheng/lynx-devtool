@@ -38,6 +38,25 @@ const getAppPath = (() => {
   };
 })();
 
+// #region debug-point
+const reportDbg = (payload: Record<string, any>) => {
+  try {
+    void fetch('http://127.0.0.1:17777/event', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: 'lynx-ai-assistant-device-tools',
+        runId: 'pre-fix',
+        hypothesisId: payload.hypothesisId ?? 'H?',
+        msg: payload.msg ?? 'renderer-context',
+        ts: Date.now(),
+        data: payload.data ?? payload
+      })
+    });
+  } catch (_) {}
+};
+// #endregion debug-point
+
 export interface PluginEvent {
   id?: number;
   pluginId: string;
@@ -112,13 +131,37 @@ export class RendererContext implements IPluginRendererContext {
   }
 
   publishPluginEvent(event: PluginEvent) {
-    this._pluginEventListeners.get(event.eventName)?.forEach((listener) => {
+    const listeners = this._pluginEventListeners.get(event.eventName) ?? [];
+    // #region debug-point
+    if (event.eventName === 'EXECUTE_CDP_COMMAND') {
+      reportDbg({
+        hypothesisId: 'H2',
+        msg: 'RendererContext.publishPluginEvent',
+        data: {
+          eventName: event.eventName,
+          pluginId: event.pluginId,
+          isAsync: !!event.isAsync,
+          id: event.id,
+          listenerCount: listeners.length
+        }
+      });
+    }
+    // #endregion debug-point
+
+    listeners.forEach((listener) => {
       const resp = listener(event);
       if (event.isAsync && event.id) {
         if (resp instanceof Promise) {
-          resp.then((data) => {
-            ipcRenderer.invoke(PLUGIN_EVENT_CUSTOM_EVENT_RESPONSE, { id: event.id, data });
-          });
+          resp
+            .then((data) => {
+              ipcRenderer.invoke(PLUGIN_EVENT_CUSTOM_EVENT_RESPONSE, { id: event.id, data });
+            })
+            .catch((error) => {
+              ipcRenderer.invoke(PLUGIN_EVENT_CUSTOM_EVENT_RESPONSE, {
+                id: event.id,
+                error: error instanceof Error ? error.message : String(error)
+              });
+            });
         } else {
           ipcRenderer.invoke(PLUGIN_EVENT_CUSTOM_EVENT_RESPONSE, { id: event.id, data: resp });
         }

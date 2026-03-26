@@ -6,11 +6,11 @@
   </a>
 </p>
 
-![GitHub Release](https://img.shields.io/github/v/release/lynx-family/lynx-devtool)
-![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/lynx-family/lynx-devtool/total)
-[![Build and Release](https://github.com/lynx-family/lynx-devtool/actions/workflows/release.yaml/badge.svg)](https://github.com/lynx-family/lynx-devtool/actions/workflows/release.yaml)
-[![Build devtools packages](https://github.com/lynx-family/lynx-devtool/actions/workflows/ci.yaml/badge.svg)](https://github.com/lynx-family/lynx-devtool/actions/workflows/ci.yaml)
-[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0.txt)
+!\[GitHub Release]\(https\://img.shields.io/github/v/release/lynx-family/lynx-devtool null)
+!\[GitHub Downloads (all assets, all releases)]\(https\://img.shields.io/github/downloads/lynx-family/lynx-devtool/total null)
+[!\[Build and Release\](https://github.com/lynx-family/lynx-devtool/actions/workflows/release.yaml/badge.svg null)](https://github.com/lynx-family/lynx-devtool/actions/workflows/release.yaml)
+[!\[Build devtools packages\](https://github.com/lynx-family/lynx-devtool/actions/workflows/ci.yaml/badge.svg null)](https://github.com/lynx-family/lynx-devtool/actions/workflows/ci.yaml)
+[!\[License\](https://img.shields.io/badge/license-Apache%202.0-blue.svg null)](https://www.apache.org/licenses/LICENSE-2.0.txt)
 
 An Electron-based developer tool for Lynx, providing mobile debugging features.
 
@@ -24,7 +24,7 @@ An Electron-based developer tool for Lynx, providing mobile debugging features.
 
 ## Project Structure
 
-``` plantext
+```plantext
 .
 ├── packages/ # Sub-packages
 │ ├── lynx-devtool-cli/ # CLI toolkit
@@ -70,25 +70,25 @@ git clone git@github.com:lynx-family/lynx-devtool.git --depth=1
 cd lynx-devtool
 ```
 
-2. Install project dependencies:
+1. Install project dependencies:
 
 ```bash
 pnpm install
 ```
 
-3. Sync DevTools dependencies and build it:
+1. Sync DevTools dependencies and build it:
 
 ```bash
 pnpm run build:devtools-frontend-lynx
 ```
 
-4. Sync Lynx Trace dependencies and build it:
+1. Sync Lynx Trace dependencies and build it:
 
 ```bash
 pnpm run build:lynx-trace
 ```
 
-5. Start development environment:
+1. Start development environment:
 
 ```bash
 pnpm run dev
@@ -118,3 +118,4 @@ or just call `make all`
 2. Create feature branch
 3. Commit changes
 4. Create Pull Request
+

@@ -29,6 +29,7 @@ export interface ChatMessage {
 export interface SendMessageOptions {
   context?: any;
   mcpTools?: string[];
+  target?: { clientId?: string; sessionId?: number };
 }
 
 export class AIService {
@@ -42,10 +43,18 @@ export class AIService {
   private conversationHistory: ChatMessage[] = [];
   private anthropicClient?: Anthropic;
   private mcpClientManager: MCPClientManager;
-  private cdpExecutor?: (method: string, params: any) => Promise<any>;
+  private cdpExecutor?: (
+    method: string,
+    params: any,
+    type?: 'CDP' | 'App' | 'Device'
+  ) => Promise<any>;
   private cdpTools: any[] = [];
 
-  constructor(mcpClientManager: MCPClientManager, cdpExecutor?: (method: string, params: any) => Promise<any>) {
+  constructor(mcpClientManager: MCPClientManager, cdpExecutor?: (
+    method: string,
+    params: any,
+    type?: 'CDP' | 'App' | 'Device'
+  ) => Promise<any>) {
     this.mcpClientManager = mcpClientManager;
     this.cdpExecutor = cdpExecutor;
     this.cdpTools = this.loadCDPTools();
@@ -54,14 +63,10 @@ export class AIService {
 
   private loadCDPTools(): any[] {
     try {
-      const toolsPath = path.join(__dirname, '../resources/cdp-tools.json');
+      const toolsPath = path.join(__dirname, 'resources/cdp-tools.json');
       if (fs.existsSync(toolsPath)) {
         const content = fs.readFileSync(toolsPath, 'utf-8');
-        const tools = JSON.parse(content);
-        return tools.map((t: any) => ({
-          ...t,
-          inputSchema: t.input_schema || t.inputSchema
-        }));
+        return JSON.parse(content);
       }
     } catch (e) {
       console.error('Failed to load CDP tools:', e);
@@ -213,7 +218,8 @@ export class AIService {
         arkTools,
         availableTools,
         initialData,
-        maxRounds: 4
+        maxRounds: 4,
+        target: options?.target
       });
       const assistantMessage: ChatMessage = {
         id: this.generateMessageId(),
@@ -312,27 +318,101 @@ export class AIService {
     return calls;
   }
 
+  private getToolCategory(toolName: string): 'cdp' | 'app' | 'jsb' | 'pia' | 'device' {
+    if (toolName.startsWith('App_')) return 'app';
+    if (toolName.startsWith('JSB_')) return 'jsb';
+    if (toolName.startsWith('PIA_')) return 'pia';
+    if (toolName.startsWith('Device_')) return 'device';
+    return 'cdp';
+  }
+
+  
+  private convertToolNameToMethod(toolName: string): string {
+    const parts = toolName.split('_');
+    if (parts.length < 2) return toolName;
+    return parts[0] + '.' + parts.slice(1).join('_');
+  }
+
+  private normalizeToolArguments(args: any): any {
+    if (args === undefined || args === null) return {};
+    if (typeof args === 'string') {
+      const s = args.trim();
+      if (s.length === 0) return {};
+      try {
+        const parsed = JSON.parse(s);
+        if (parsed && typeof parsed === 'object') return parsed;
+        return {};
+      } catch {
+        return {};
+      }
+    }
+    if (typeof args === 'object') return args;
+    return {};
+  }
+
+  private applyTargetDefaults(
+    params: any,
+    target?: { clientId?: string; sessionId?: number },
+    category?: 'cdp' | 'app' | 'jsb' | 'pia' | 'device'
+  ): any {
+    if (!target) return params;
+    if (!params || typeof params !== 'object') return params;
+    const out: any = { ...params };
+
+    if (target.clientId !== undefined) {
+      if (out.clientId === undefined && out.client_id === undefined) {
+        out.clientId = target.clientId;
+      }
+    }
+    if (category === 'cdp' && target.sessionId !== undefined) {
+      if (out.sessionId === undefined && out.session_id === undefined) {
+        out.sessionId = target.sessionId;
+      }
+    }
+    return out;
+  }
+  
   private async executeToolCalls(
     toolCalls: Array<{ id?: string; name: string; arguments: any }>,
-    availableTools: any[]
+    availableTools: any[],
+    target?: { clientId?: string; sessionId?: number }
   ): Promise<Array<{ callId?: string; toolName: string; serverId: string; result?: any; error?: string }>> {
     const executedResults: Array<{ callId?: string; toolName: string; serverId: string; result?: any; error?: string }> =
       [];
 
     for (const call of toolCalls) {
-      // Check if it's a CDP tool
       const cdpTool = this.cdpTools.find(t => t.name === call.name);
       if (cdpTool) {
         try {
-          // CDP tool name is "Domain_method", convert to "Domain.method"
-          const method = cdpTool.name.replace('_', '.');
-          const result = await this.cdpExecutor?.(method, call.arguments);
-          executedResults.push({
-            callId: call.id,
-            toolName: call.name,
-            serverId: 'internal-cdp',
-            result
-          });
+          const category = this.getToolCategory(call.name);
+          const method = this.convertToolNameToMethod(call.name);
+          const params = this.applyTargetDefaults(this.normalizeToolArguments(call.arguments), target, category);
+          
+          if (category === 'device') {
+            const result = await this.cdpExecutor?.(method, params, 'Device');
+            executedResults.push({
+              callId: call.id,
+              toolName: call.name,
+              serverId: 'internal-device',
+              result
+            });
+          } else if (category === 'cdp') {
+            const result = await this.cdpExecutor?.(method, params, 'CDP');
+            executedResults.push({
+              callId: call.id,
+              toolName: call.name,
+              serverId: 'internal-cdp',
+              result
+            });
+          } else if (category === 'app' || category === 'jsb' || category === 'pia') {
+            const result = await this.cdpExecutor?.(method, params, 'App');
+            executedResults.push({
+              callId: call.id,
+              toolName: call.name,
+              serverId: 'internal-app',
+              result
+            });
+          }
         } catch (e: any) {
           executedResults.push({
             callId: call.id,
@@ -343,7 +423,6 @@ export class AIService {
         }
         continue;
       }
-
       const toolDef = availableTools.find(t => t.name === call.name);
       if (!toolDef) {
         executedResults.push({
@@ -458,6 +537,7 @@ export class AIService {
     availableTools: any[];
     initialData: any;
     maxRounds: number;
+    target?: { clientId?: string; sessionId?: number };
   }): Promise<{ text: string; usedTools: string[] | undefined }> {
     let currentData: any = args.initialData;
     let currentResponseId: string | undefined = (currentData as any)?.id;
@@ -470,7 +550,7 @@ export class AIService {
         break;
       }
 
-      const executedResults = await this.executeToolCalls(toolCalls, args.availableTools);
+      const executedResults = await this.executeToolCalls(toolCalls, args.availableTools, args.target);
       for (const r of executedResults) {
         if (r.toolName) {
           usedToolsSet.add(r.toolName);
@@ -650,7 +730,7 @@ export class AIService {
   }
 
   private getSystemPrompt(): string {
-    return `You are an AI assistant specialized in debugging and analyzing applications built with the Lynx cross-platform framework. 
+    return `You are an AI assistant specialized in debugging and analyzing applications built with the Lynx cross-platform framework.
 
 Your capabilities include:
 - Analyzing debugging information from mobile apps, simulators, and web environments
@@ -660,10 +740,26 @@ Your capabilities include:
 - Suggesting debugging strategies and fixes
 - Working with debugging tools and logs
 
-You have access to various MCP (Model Context Protocol) tools that can help you:
-- Access file systems to examine code
-- Search for information online
-- Interact with external services
+You have access to the following tools:
+
+**CDP Tools (Chrome DevTools Protocol)** - Use these to inspect and debug the running application:
+- DOM_getDocument, DOM_querySelector, DOM_getAttributes: Inspect the DOM tree
+- CSS_getComputedStyleForNode, CSS_getMatchedStylesForNode: Analyze CSS styles
+- Runtime_listConsole: Get console messages and errors
+- Page_takeScreenshot: Capture screenshots of the current page
+- Device_listDevices, Device_listClients, Device_listSessions: List connected devices and sessions
+- Debugger_listScripts, Debugger_getScriptSource: Inspect JavaScript source code
+- PIA_* tools: Lynx-specific performance and debugging tools
+- App_* tools: Lynx app-level debugging tools
+
+**MCP Tools** - External tools for file access, search, and other capabilities.
+
+When debugging console errors or red screen errors:
+1. First use Device_listClients to get the clientId
+2. Then use Device_listSessions to get the sessionId
+3. Use Runtime_listConsole to get detailed console messages with stack traces
+4. Use DOM tools to inspect the relevant elements if needed
+5. Use PIA tools to analyze Lynx-specific performance data
 
 When providing assistance:
 1. Be specific and actionable in your suggestions
