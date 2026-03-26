@@ -159,6 +159,39 @@ export const AIAssistantView: React.FC<AIAssistantViewProps> = ({ context }) => 
 
   useEffect(() => {
     const handleMessage = async (event: MessageEvent) => {
+      // Handle Console Insight requests (inline analysis, separate from chat)
+      if (event.data?.type === 'lynx-console-insight-request') {
+        const { requestId, errorMessage, stackTrace } = event.data.content;
+        const source = event.source as Window;
+
+        try {
+          const result = await asyncBridge.analyzeConsoleError({
+            requestId,
+            errorMessage,
+            stackTrace
+          });
+          source?.postMessage({
+            type: 'lynx-console-insight-response',
+            content: {
+              requestId,
+              status: 'done',
+              insight: result.insight,
+              sources: result.sources
+            }
+          }, '*');
+        } catch (error) {
+          source?.postMessage({
+            type: 'lynx-console-insight-response',
+            content: {
+              requestId,
+              status: 'error',
+              error: error instanceof Error ? error.message : 'Analysis failed'
+            }
+          }, '*');
+        }
+        return;
+      }
+
       if (event.data && (event.data.type === 'lynx-ai-analysis-request' || event.data.type === 'lynx-ai-elements-request')) {
         const { includeDebugContext, selectedMCPTools, isLoading } = stateRef.current;
         if (isLoading) {

@@ -64,6 +64,32 @@ const bridge = (context: MainContext) => ({
     return debugContextCollector.setContextSourceEnabled(source, enabled);
   },
 
+  // Console Insights - one-shot error analysis
+  async analyzeConsoleError(params: {
+    errorMessage: string;
+    stackTrace?: any;
+    requestId: string;
+  }) {
+    // Auto-connect LynxBase MCP if not already connected
+    try {
+      const servers = mcpClientManager.listServers();
+      const lynxbaseConnected = servers.some(
+        (s: any) => s.name === 'Lynx Base MCP' && s.status === 'connected'
+      );
+      if (!lynxbaseConnected) {
+        await mcpClientManager.connectServer({
+          name: 'Lynx Base MCP',
+          command: 'npx',
+          args: ['-y', '--registry', 'https://bnpm.byted.org', '@byted-lynx/lynx-base-mcp-server@latest']
+        });
+      }
+    } catch (e) {
+      console.warn('Failed to auto-connect LynxBase MCP:', e);
+      // Continue without MCP - the analysis can still work with builtin tools
+    }
+    return aiService.analyzeConsoleError(params);
+  },
+
   // AI Configuration
   async updateAIConfig(config: { apiKey?: string; model?: string; baseURL?: string }) {
     return aiService.updateConfig(config);

@@ -5,6 +5,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import axios, { AxiosError } from 'axios';
 import { MCPClientManager } from './mcp-client-manager';
+import { getBuiltinToolDefinitions, executeBuiltinTool } from './builtin-tools';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -49,6 +50,7 @@ export class AIService {
     type?: 'CDP' | 'App' | 'Device'
   ) => Promise<any>;
   private cdpTools: any[] = [];
+  private builtinTools: any[] = [];
 
   constructor(mcpClientManager: MCPClientManager, cdpExecutor?: (
     method: string,
@@ -58,6 +60,7 @@ export class AIService {
     this.mcpClientManager = mcpClientManager;
     this.cdpExecutor = cdpExecutor;
     this.cdpTools = this.loadCDPTools();
+    this.builtinTools = getBuiltinToolDefinitions();
     this.initializeClient();
   }
 
@@ -423,6 +426,16 @@ export class AIService {
         }
         continue;
       }
+      // Handle builtin tools (read_file, grep_source, etc.)
+      if (call.name.startsWith('builtin_')) {
+        try {
+          const result = await executeBuiltinTool(call.name, this.normalizeToolArguments(call.arguments));
+          executedResults.push({ callId: call.id, toolName: call.name, serverId: 'builtin', result });
+        } catch (e: any) {
+          executedResults.push({ callId: call.id, toolName: call.name, serverId: 'builtin', error: e.message });
+        }
+        continue;
+      }
       const toolDef = availableTools.find(t => t.name === call.name);
       if (!toolDef) {
         executedResults.push({
@@ -596,6 +609,103 @@ export class AIService {
     return { text, usedTools };
   }
 
+  async analyzeConsoleError(params: {
+    errorMessage: string;
+    stackTrace?: any;
+    requestId: string;
+  }): Promise<{ requestId: string; insight: string; sources?: string[] }> {
+    // Truncate error message
+    let errorMessage = params.errorMessage;
+    if (errorMessage.length > 2000) {
+      errorMessage = errorMessage.substring(0, 2000) + `... [truncated, original: ${params.errorMessage.length} chars]`;
+    }
+
+    // Truncate stack trace
+    let stackTraceStr = '';
+    if (params.stackTrace) {
+      stackTraceStr = JSON.stringify(params.stackTrace, null, 2);
+      if (stackTraceStr.length > 1500) {
+        stackTraceStr = stackTraceStr.substring(0, 1500) + `... [truncated]`;
+      }
+    }
+
+    // Build user message
+    let userMessage = `Analyze this console error:\n\n${errorMessage}`;
+    if (stackTraceStr) {
+      userMessage += `\n\nStack Trace:\n${stackTraceStr}`;
+    }
+
+    // Get available tools: MCP tools + builtin tools (no CDP tools for static analysis)
+    const mcpTools = await this.mcpClientManager.listTools();
+    const availableTools = [...mcpTools, ...this.builtinTools];
+    const arkTools = this.toArkTools(availableTools);
+
+    const systemMessage = this.getConsoleInsightSystemPrompt();
+
+    if (this.config.provider === 'ark') {
+      return this.analyzeConsoleErrorArk({
+        requestId: params.requestId,
+        userMessage,
+        systemMessage,
+        arkTools,
+        availableTools
+      });
+    }
+
+    // Anthropic fallback - simple one-shot call
+    if (!this.anthropicClient) {
+      throw new Error('AI client not configured. Please set API key first.');
+    }
+
+    const response = await this.anthropicClient.messages.create({
+      model: this.config.model!,
+      max_tokens: 1000,
+      system: systemMessage,
+      messages: [{ role: 'user', content: userMessage }]
+    });
+
+    const insight = response.content[0]?.type === 'text' ? response.content[0].text : 'Unable to analyze this error.';
+    return { requestId: params.requestId, insight };
+  }
+
+  private async analyzeConsoleErrorArk(args: {
+    requestId: string;
+    userMessage: string;
+    systemMessage: string;
+    arkTools: any[];
+    availableTools: any[];
+  }): Promise<{ requestId: string; insight: string; sources?: string[] }> {
+    if (!this.config.apiKey || !this.config.model) {
+      throw new Error('Ark not configured.');
+    }
+
+    const url = this.getArkResponsesUrl();
+    const payload = {
+      model: this.config.model,
+      store: false,
+      input: [
+        { type: 'message', role: 'system', content: args.systemMessage },
+        { type: 'message', role: 'user', content: args.userMessage }
+      ],
+      tools: args.arkTools
+    };
+
+    const initialData = await this.postArk(url, payload);
+    const { text } = await this.runArkToolLoop({
+      url,
+      systemMessage: args.systemMessage,
+      arkTools: args.arkTools,
+      availableTools: args.availableTools,
+      initialData,
+      maxRounds: 3
+    });
+
+    return {
+      requestId: args.requestId,
+      insight: text || 'Unable to analyze this error.'
+    };
+  }
+
   async getConversationHistory(): Promise<ChatMessage[]> {
     return [...this.conversationHistory];
   }
@@ -727,6 +837,26 @@ export class AIService {
     }
 
     return results;
+  }
+
+  private getConsoleInsightSystemPrompt(): string {
+    return `You are an inline Console Insight assistant embedded in the Lynx DevTool Console panel.
+Your task is to analyze console error messages from Lynx cross-platform applications and provide a concise, actionable explanation.
+
+Format your response as:
+**What happened**: [1-2 sentence explanation of the error]
+**Why**: [likely root cause]
+**Fix**: [suggested fix or next debugging step]
+
+Guidelines:
+- Be concise. Your response appears inline below the error message, not in a chat window.
+- Keep total response under 200 words.
+- Use markdown formatting: **bold** for emphasis, \`code\` for identifiers and code snippets.
+- If you have access to Lynx Base MCP tools, use them to look up Lynx-specific error codes, error messages, and best practices.
+- If you have access to builtin_read_file or builtin_grep_source tools, use them to examine source code referenced in stack traces.
+- If the error message references specific Lynx APIs or components, explain what they do.
+- Do not ask follow-up questions. Provide your best analysis with the information available.
+- If the error is a common JavaScript/TypeScript error (TypeError, ReferenceError, etc.), explain it in the context of Lynx development.`;
   }
 
   private getSystemPrompt(): string {

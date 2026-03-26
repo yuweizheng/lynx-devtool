@@ -13,5 +13,5 @@ cp -r resources/404.html dist/static/404
 # open shell
 cp -r resources/openChrome.applescript dist/static
 
-mkdir -p dist/static/trace
-tar -xf resources/lynx-trace.tar.gz -C dist/static/trace
+# mkdir -p dist/static/trace
+# tar -xf resources/lynx-trace.tar.gz -C dist/static/trace

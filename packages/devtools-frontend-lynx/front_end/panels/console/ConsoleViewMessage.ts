@@ -172,6 +172,27 @@ const str_ = i18n.i18n.registerUIStrings('panels/console/ConsoleViewMessage.ts',
 const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
 const elementToMessage = new WeakMap<Element, ConsoleViewMessage>();
 
+// Console Insight: map requestId → ConsoleViewMessage for async response handling
+const insightRequestMap = new Map<string, ConsoleViewMessage>();
+
+window.addEventListener('message', (event: MessageEvent) => {
+  if (event.data?.type === 'lynx-console-insight-response') {
+    const { requestId, status, insight, sources, error } = event.data.content || {};
+    const viewMessage = insightRequestMap.get(requestId);
+    if (!viewMessage) {
+      return;
+    }
+
+    if (status === 'done') {
+      viewMessage._renderInsightResult(insight, sources);
+      insightRequestMap.delete(requestId);
+    } else if (status === 'error') {
+      viewMessage._renderInsightError(error || 'Unknown error');
+      insightRequestMap.delete(requestId);
+    }
+  }
+});
+
 export const getMessageForElement = (element: Element): ConsoleViewMessage|undefined => {
   return elementToMessage.get(element);
 };
@@ -229,6 +250,9 @@ export class ConsoleViewMessage implements ConsoleViewportElement {
   private requestResolver: Logs.RequestResolver.RequestResolver;
   private issueResolver: IssuesManager.IssueResolver.IssueResolver;
   private _isDevMode: boolean;
+  _insightPanel: HTMLElement|null;
+  _insightRequestId: string|null;
+  _insightVisible: boolean;
 
 
   constructor(
@@ -265,6 +289,9 @@ export class ConsoleViewMessage implements ConsoleViewportElement {
     this._lastInSimilarGroup = false;
     this._groupKey = '';
     this._repeatCountElement = null;
+    this._insightPanel = null;
+    this._insightRequestId = null;
+    this._insightVisible = false;
 
     this._isDevMode = new URLSearchParams(location.search).get('dev')?.split(':').includes('console') ?? false;
   }
@@ -1255,24 +1282,7 @@ export class ConsoleViewMessage implements ConsoleViewportElement {
       contentElement.appendChild(this._messageLevelIcon);
     }
 
-    if (this._message.level === Protocol.Log.LogEntryLevel.Error) {
-      const aiIcon = UI.Icon.Icon.create('smallicon-user-command', 'console-ai-icon');
-      aiIcon.style.setProperty('margin-right', '6px');
-      aiIcon.style.setProperty('cursor', 'pointer');
-      UI.Tooltip.Tooltip.install(aiIcon, 'Ask AI to analyze this error');
-      aiIcon.addEventListener('click', (event) => {
-        event.stopPropagation();
-        const content = {
-            message: this.text,
-            stackTrace: this._message.stackTrace
-        };
-        window.parent.postMessage({
-            type: 'lynx-ai-analysis-request',
-            content
-        }, '*');
-      });
-      contentElement.appendChild(aiIcon);
-    }
+    // Lightbulb button is added in updateMessageElement() for error-level messages
 
     this._contentElement = contentElement;
 
@@ -1356,6 +1366,19 @@ export class ConsoleViewMessage implements ConsoleViewportElement {
     this._element.appendChild(this.contentElement());
     if (this._repeatCount > 1) {
       this._showRepeatCountElement();
+    }
+
+    // Add lightbulb insight button for error messages
+    if (this._message.level === Protocol.Log.LogEntryLevel.Error) {
+      const insightButton = document.createElement('button');
+      insightButton.classList.add('console-insight-button');
+      insightButton.title = 'Understand this error';
+      insightButton.textContent = '\uD83D\uDCA1';
+      insightButton.addEventListener('click', (event: Event) => {
+        event.stopPropagation();
+        this._toggleConsoleInsight();
+      });
+      this._element.appendChild(insightButton);
     }
   }
 
@@ -1457,6 +1480,150 @@ export class ConsoleViewMessage implements ConsoleViewportElement {
       accessibleName = i18nString(UIStrings.repeatS, {n: this._repeatCount});
     }
     UI.ARIAUtils.setAccessibleName(this._repeatCountElement, accessibleName);
+  }
+
+  _toggleConsoleInsight(): void {
+    if (this._insightVisible && this._insightPanel) {
+      // Collapse the insight panel
+      this._insightPanel.remove();
+      this._insightPanel = null;
+      this._insightVisible = false;
+      this._cachedHeight = 0;
+      this._messageResized({} as Common.EventTarget.EventTargetEvent);
+      return;
+    }
+
+    // Create the insight panel
+    const requestId = `insight_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    this._insightRequestId = requestId;
+    this._insightVisible = true;
+
+    this._insightPanel = document.createElement('div');
+    this._insightPanel.classList.add('console-insight-panel');
+
+    // Loading state
+    const loadingEl = document.createElement('div');
+    loadingEl.classList.add('console-insight-loading');
+    loadingEl.textContent = 'Analyzing error...';
+    this._insightPanel.appendChild(loadingEl);
+
+    // Dismiss button
+    const dismissBtn = document.createElement('button');
+    dismissBtn.classList.add('console-insight-dismiss');
+    dismissBtn.textContent = '\u2715';
+    dismissBtn.addEventListener('click', (e: Event) => {
+      e.stopPropagation();
+      this._toggleConsoleInsight();
+    });
+    this._insightPanel.appendChild(dismissBtn);
+
+    // Insert panel after contentElement within _element
+    if (this._element) {
+      this._element.appendChild(this._insightPanel);
+      this._cachedHeight = 0;
+      this._messageResized({} as Common.EventTarget.EventTargetEvent);
+    }
+
+    // Register for async response
+    insightRequestMap.set(requestId, this);
+
+    // Truncate error message for API
+    let errorMessage = this.text;
+    if (errorMessage.length > 2000) {
+      errorMessage = errorMessage.substring(0, 2000) + `... [truncated, original: ${this.text.length} chars]`;
+    }
+
+    // Send request via postMessage to parent (AI assistant plugin)
+    window.parent.postMessage({
+      type: 'lynx-console-insight-request',
+      content: {
+        requestId,
+        errorMessage,
+        stackTrace: this._message.stackTrace
+      }
+    }, '*');
+  }
+
+  _renderInsightResult(insight: string, sources?: string[]): void {
+    if (!this._insightPanel) {
+      return;
+    }
+    this._insightPanel.removeChildren();
+
+    // Header
+    const header = document.createElement('div');
+    header.classList.add('console-insight-header');
+    header.textContent = '\uD83D\uDCA1 Console Insight';
+    this._insightPanel.appendChild(header);
+
+    // Content with basic markdown rendering
+    const content = document.createElement('div');
+    content.classList.add('console-insight-content');
+    content.innerHTML = this._renderBasicMarkdown(insight);
+    this._insightPanel.appendChild(content);
+
+    // Sources section
+    if (sources && sources.length > 0) {
+      const sourcesEl = document.createElement('div');
+      sourcesEl.classList.add('console-insight-sources');
+      sourcesEl.textContent = 'Sources: ' + sources.join(', ');
+      this._insightPanel.appendChild(sourcesEl);
+    }
+
+    // Dismiss button
+    const dismissBtn = document.createElement('button');
+    dismissBtn.classList.add('console-insight-dismiss');
+    dismissBtn.textContent = '\u2715';
+    dismissBtn.addEventListener('click', (e: Event) => {
+      e.stopPropagation();
+      this._toggleConsoleInsight();
+    });
+    this._insightPanel.appendChild(dismissBtn);
+
+    this._cachedHeight = 0;
+    this._messageResized({} as Common.EventTarget.EventTargetEvent);
+  }
+
+  _renderInsightError(error: string): void {
+    if (!this._insightPanel) {
+      return;
+    }
+    this._insightPanel.removeChildren();
+
+    const errorEl = document.createElement('div');
+    errorEl.classList.add('console-insight-error');
+    errorEl.textContent = `Failed to analyze: ${error}`;
+    this._insightPanel.appendChild(errorEl);
+
+    // Dismiss button
+    const dismissBtn = document.createElement('button');
+    dismissBtn.classList.add('console-insight-dismiss');
+    dismissBtn.textContent = '\u2715';
+    dismissBtn.addEventListener('click', (e: Event) => {
+      e.stopPropagation();
+      this._toggleConsoleInsight();
+    });
+    this._insightPanel.appendChild(dismissBtn);
+
+    this._cachedHeight = 0;
+    this._messageResized({} as Common.EventTarget.EventTargetEvent);
+  }
+
+  _renderBasicMarkdown(text: string): string {
+    // Escape HTML first
+    let html = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    // Code blocks (```...```)
+    html = html.replace(/```([^`]*?)```/gs, '<pre><code>$1</code></pre>');
+    // Inline code (`...`)
+    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+    // Bold (**...**)
+    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    // Line breaks
+    html = html.replace(/\n/g, '<br>');
+    return html;
   }
 
   get text(): string {

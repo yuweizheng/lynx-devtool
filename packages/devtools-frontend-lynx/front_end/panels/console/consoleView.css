@@ -204,6 +204,8 @@
 
 .console-message-wrapper {
   display: flex;
+  flex-wrap: wrap;
+  position: relative;
   border-top: 1px solid var(--override-message-border-color);
   border-bottom: 1px solid transparent;
 }
@@ -500,4 +502,135 @@
   .console-message-wrapper.console-error-level:focus:last-of-type {
     --override-error-text-color: HighlightText;
   }
+}
+
+/* ============================================
+   Console Insight - AI Error Analysis
+   ============================================ */
+
+/* Lightbulb button on error messages */
+.console-insight-button {
+  position: absolute;
+  right: 4px;
+  top: 2px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  padding: 2px 4px;
+  border-radius: 2px;
+  z-index: 1;
+  line-height: 1;
+}
+
+.console-message-wrapper:hover .console-insight-button,
+.console-insight-button:focus {
+  opacity: 1;
+}
+
+.console-insight-button:hover {
+  background-color: var(--color-background-elevation-2);
+}
+
+/* Inline insight panel below error message */
+.console-insight-panel {
+  position: relative;
+  margin: 4px 24px 4px 24px;
+  padding: 12px 32px 12px 16px;
+  background-color: var(--color-background-elevation-1);
+  border: 1px solid var(--color-details-hairline);
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.5;
+  flex: none;
+  flex-basis: 100%;
+}
+
+.console-insight-header {
+  font-weight: bold;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: var(--color-text-primary);
+}
+
+.console-insight-content {
+  color: var(--color-text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.console-insight-content code {
+  background-color: var(--color-background-elevation-2);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-family: var(--monospace-font-family);
+  font-size: 11px;
+}
+
+.console-insight-content pre {
+  background-color: var(--color-background-elevation-2);
+  padding: 8px;
+  border-radius: 4px;
+  overflow-x: auto;
+  margin: 4px 0;
+}
+
+.console-insight-content pre code {
+  background: none;
+  padding: 0;
+}
+
+.console-insight-content strong {
+  color: var(--color-text-primary);
+}
+
+.console-insight-sources {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-details-hairline);
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+
+.console-insight-loading {
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+.console-insight-error {
+  color: var(--override-error-text-color);
+}
+
+.console-insight-dismiss {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  padding: 2px 6px;
+  border-radius: 2px;
+  line-height: 1;
+}
+
+.console-insight-dismiss:hover {
+  background-color: var(--color-background-elevation-2);
+  color: var(--color-text-primary);
+}
+
+/* Dark theme overrides */
+.-theme-with-dark-background .console-insight-panel {
+  border-color: rgb(58 58 58);
+}
+
+.-theme-with-dark-background .console-insight-content code {
+  background-color: rgb(42 42 42);
+}
+
+.-theme-with-dark-background .console-insight-content pre {
+  background-color: rgb(42 42 42);
 }
