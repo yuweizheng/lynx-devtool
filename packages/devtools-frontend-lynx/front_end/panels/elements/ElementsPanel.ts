@@ -149,6 +149,60 @@ const createAccessibilityTreeToggleButton = (isActive: boolean): HTMLButtonEleme
   return button;
 };
 
+interface ElementsInsightSourceEntry {
+  sourceURL?: string;
+  lineNumber?: number;
+  columnNumber?: number;
+}
+
+interface ElementsInsightNodeSummary {
+  nodeId: number;
+  backendNodeId: number;
+  selector: string;
+  nodeName: string;
+  nodeType: number;
+  childNodeCount: number;
+  path: string;
+  attributes: Record<string, string>;
+  textPreview?: string;
+  sourceEntry?: ElementsInsightSourceEntry;
+  parentChain: Array<Record<string, any>>;
+  childPreview: Array<Record<string, any>>;
+}
+
+const ELEMENTS_INSIGHT_TIMEOUT_MS = 125000;
+
+const elementsInsightRequestMap = new Map<string, ElementsPanel>();
+
+window.addEventListener('message', (event: MessageEvent) => {
+  if (event.data?.type === 'lynx-elements-insight-response') {
+    const {requestId, status, insight, sources, error, phase, message, text} = event.data.content || {};
+    const panel = elementsInsightRequestMap.get(requestId);
+    if (!panel) {
+      return;
+    }
+
+    if (status === 'progress') {
+      panel._handleElementsInsightProgress(requestId, phase, message, text);
+      return;
+    }
+    if (status === 'done') {
+      panel._handleElementsInsightResult(requestId, insight, sources);
+    } else if (status === 'error') {
+      panel._handleElementsInsightError(requestId, error || 'Unknown error');
+    }
+    elementsInsightRequestMap.delete(requestId);
+    return;
+  }
+
+  if (event.data?.type === 'lynx-attach-source-response' && elementsPanelInstance) {
+    const {path, canceled} = event.data.content || {};
+    if (!canceled && path) {
+      elementsPanelInstance._handleMountedSourceDirectory(path);
+    }
+  }
+});
+
 let elementsPanelInstance: ElementsPanel;
 
 export class ElementsPanel extends UI.Panel.Panel implements UI.SearchableView.Searchable,
@@ -185,6 +239,25 @@ export class ElementsPanel extends UI.Panel.Panel implements UI.SearchableView.S
   _notFirstInspectElement?: boolean;
   sidebarPaneView?: UI.View.TabbedViewLocation;
   _stylesViewToReveal?: UI.View.SimpleView;
+  _elementsAiContainer!: HTMLDivElement;
+  _elementsAiNodeBadge!: HTMLSpanElement;
+  _elementsAiSourceMeta!: HTMLDivElement;
+  _elementsAiRepoInput!: HTMLInputElement;
+  _elementsAiQuestionInput!: HTMLTextAreaElement;
+  _elementsAiIntentHint!: HTMLSpanElement;
+  _elementsAiLastRequest!: HTMLDivElement;
+  _elementsAiSubmitButton!: HTMLButtonElement;
+  _elementsAiAttachButton!: HTMLButtonElement;
+  _elementsAiAnswer!: HTMLDivElement;
+  _elementsAiActiveNodeId: number|null;
+  _elementsAiPendingRequestId: string|null;
+  _elementsAiProgressLog: string[];
+  _elementsAiStreamingInsight: string;
+  _elementsAiAnswerShouldStickToBottom: boolean;
+  _elementsAssistantSplitWidget!: UI.SplitWidget.SplitWidget;
+  _elementsTreeWidget!: UI.Widget.VBox;
+  _elementsAssistantWidget!: UI.Widget.VBox;
+  _elementsBreadcrumbsContainer!: HTMLDivElement;
 
   constructor() {
     super('elements');
@@ -201,12 +274,23 @@ export class ElementsPanel extends UI.Panel.Panel implements UI.SearchableView.S
     const stackElement = this._searchableView.element;
 
     this._contentElement = document.createElement('div');
-    const crumbsContainer = document.createElement('div');
+    this._elementsBreadcrumbsContainer = document.createElement('div');
+    this._elementsAssistantSplitWidget =
+        new UI.SplitWidget.SplitWidget(false, true, 'elementsPanelAssistantSplitViewState', 325, 280);
+    this._elementsAssistantSplitWidget.element.classList.add('elements-ai-split-widget');
+    this._elementsTreeWidget = new UI.Widget.VBox();
+    this._elementsTreeWidget.element.classList.add('elements-tree-pane');
+    this._elementsAssistantWidget = new UI.Widget.VBox();
+    this._elementsAssistantWidget.element.classList.add('elements-ai-pane');
     if (Root.Runtime.experiments.isEnabled('fullAccessibilityTree')) {
       this._initializeFullAccessibilityTreeView(stackElement);
     }
-    stackElement.appendChild(this._contentElement);
-    stackElement.appendChild(crumbsContainer);
+    this._elementsAssistantSplitWidget.show(stackElement);
+    this._elementsAssistantSplitWidget.setMainWidget(this._elementsTreeWidget);
+    this._elementsAssistantSplitWidget.setSidebarWidget(this._elementsAssistantWidget);
+    this._elementsAssistantSplitWidget.sidebarElement().style.minHeight = '180px';
+    this._elementsTreeWidget.contentElement.appendChild(this._contentElement);
+    this._elementsTreeWidget.contentElement.appendChild(this._elementsBreadcrumbsContainer);
 
     this._splitWidget.setMainWidget(this._searchableView);
     this._splitMode = null;
@@ -220,7 +304,7 @@ export class ElementsPanel extends UI.Panel.Panel implements UI.SearchableView.S
         .moduleSetting('domWordWrap')
         .addChangeListener(this._domWordWrapSettingChanged.bind(this));
 
-    crumbsContainer.id = 'elements-crumbs';
+    this._elementsBreadcrumbsContainer.id = 'elements-crumbs';
     if (this.domTreeButton) {
       this._accessibilityTreeView = new AccessibilityTreeView(this.domTreeButton);
     }
@@ -229,57 +313,16 @@ export class ElementsPanel extends UI.Panel.Panel implements UI.SearchableView.S
       this._crumbNodeSelected(event);
     });
 
-    crumbsContainer.appendChild(this._breadcrumbs);
-
-    const aiBar = document.createElement('div');
-    aiBar.style.setProperty('display', 'flex');
-    aiBar.style.setProperty('gap', '6px');
-    aiBar.style.setProperty('align-items', 'center');
-    aiBar.style.setProperty('padding', '6px 0');
-
-    const aiInput = document.createElement('input');
-    aiInput.type = 'text';
-    aiInput.placeholder = 'Ask AI about selected node';
-    aiInput.style.setProperty('flex', '1');
-    aiInput.style.setProperty('min-width', '120px');
-
-    const aiButton = document.createElement('button');
-    aiButton.textContent = 'Ask AI';
-    aiButton.classList.add('axtree-button');
-
-    const submitAi = (): void => {
-      const question = aiInput.value.trim();
-      if (!question) {
-        return;
-      }
-      const node = this.selectedDOMNode();
-      if (!node) {
-        return;
-      }
-      window.parent.postMessage({
-        type: 'lynx-ai-elements-request',
-        content: {
-          question,
-          nodeId: node.id,
-        },
-      }, '*');
-      aiInput.value = '';
-    };
-
-    aiButton.addEventListener('click', (event) => {
-      event.stopPropagation();
-      submitAi();
-    });
-    aiInput.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') {
-        event.stopPropagation();
-        submitAi();
-      }
-    });
-
-    aiBar.appendChild(aiInput);
-    aiBar.appendChild(aiButton);
-    crumbsContainer.appendChild(aiBar);
+    this._elementsBreadcrumbsContainer.appendChild(this._breadcrumbs);
+    this._treeOutlines = new Set();
+    this._treeOutlineHeaders = new Map();
+    this._gridStyleTrackerByCSSModel = new Map();
+    this._elementsAiActiveNodeId = null;
+    this._elementsAiPendingRequestId = null;
+    this._elementsAiProgressLog = [];
+    this._elementsAiStreamingInsight = '';
+    this._elementsAiAnswerShouldStickToBottom = true;
+    this._createElementsAssistant(this._elementsAssistantWidget.contentElement);
 
     this._stylesWidget = StylesSidebarPane.instance();
     this._computedStyleWidget = new ComputedStyleWidget();
@@ -290,9 +333,6 @@ export class ElementsPanel extends UI.Panel.Panel implements UI.SearchableView.S
         .addChangeListener(this._updateSidebarPosition.bind(this));
     this._updateSidebarPosition();
 
-    this._treeOutlines = new Set();
-    this._treeOutlineHeaders = new Map();
-    this._gridStyleTrackerByCSSModel = new Map();
     SDK.TargetManager.TargetManager.instance().observeModels(SDK.DOMModel.DOMModel, this);
     SDK.TargetManager.TargetManager.instance().addEventListener(
         SDK.TargetManager.Events.NameChanged, event => this._targetNameChanged((event.data as SDK.Target.Target)));
@@ -311,6 +351,599 @@ export class ElementsPanel extends UI.Panel.Panel implements UI.SearchableView.S
         Common.Settings.Settings.instance().moduleSetting('adornerSettings'));
     this._adornerSettingsPane = null;
     this._adornersByName = new Map();
+  }
+
+  _createElementsAssistant(crumbsContainer: HTMLElement): void {
+    this._elementsAiContainer = document.createElement('div');
+    this._elementsAiContainer.classList.add('elements-ai-assistant');
+
+    const header = document.createElement('div');
+    header.classList.add('elements-ai-header');
+
+    const headerContent = document.createElement('div');
+    headerContent.classList.add('elements-ai-header-content');
+
+    const eyebrow = document.createElement('div');
+    eyebrow.classList.add('elements-ai-eyebrow');
+    eyebrow.textContent = 'Elements Insight';
+
+    this._elementsAiNodeBadge = document.createElement('span');
+    this._elementsAiNodeBadge.classList.add('elements-ai-node-badge');
+
+    this._elementsAiSourceMeta = document.createElement('div');
+    this._elementsAiSourceMeta.classList.add('elements-ai-meta-row');
+
+    headerContent.appendChild(eyebrow);
+    headerContent.appendChild(this._elementsAiNodeBadge);
+    headerContent.appendChild(this._elementsAiSourceMeta);
+
+    const headerActions = document.createElement('div');
+    headerActions.classList.add('elements-ai-header-actions');
+
+    this._elementsAiAttachButton = document.createElement('button');
+    this._elementsAiAttachButton.classList.add('elements-ai-button');
+    this._elementsAiAttachButton.textContent = 'Attach source';
+    this._elementsAiAttachButton.addEventListener('click', (event) => {
+      event.stopPropagation();
+      Host.InspectorFrontendHost.sendWindowMessage({type: 'lynx-attach-source-request'});
+    });
+
+    headerActions.appendChild(this._elementsAiAttachButton);
+    header.appendChild(headerContent);
+    header.appendChild(headerActions);
+
+    const repoRow = document.createElement('div');
+    repoRow.classList.add('elements-ai-repo-row');
+
+    const repoLabel = document.createElement('span');
+    repoLabel.classList.add('elements-ai-inline-label');
+    repoLabel.textContent = 'Repo';
+
+    this._elementsAiRepoInput = document.createElement('input');
+    this._elementsAiRepoInput.classList.add('elements-ai-repo-input');
+    this._elementsAiRepoInput.type = 'url';
+    this._elementsAiRepoInput.placeholder = 'https://github.com/org/repo';
+    this._elementsAiRepoInput.value = Host.InspectorFrontendHost.getSourceRepositoryUrl() || '';
+    this._elementsAiRepoInput.addEventListener('blur', () => this._persistElementsRepositoryUrl());
+    this._elementsAiRepoInput.addEventListener('keydown', event => {
+      if (event.key === 'Enter') {
+        event.stopPropagation();
+        this._persistElementsRepositoryUrl();
+        this._elementsAiQuestionInput.focus();
+      }
+    });
+
+    repoRow.appendChild(repoLabel);
+    repoRow.appendChild(this._elementsAiRepoInput);
+
+    const askRow = document.createElement('div');
+    askRow.classList.add('elements-ai-ask-row');
+
+    this._elementsAiQuestionInput = document.createElement('textarea');
+    this._elementsAiQuestionInput.classList.add('elements-ai-question-input');
+    this._elementsAiQuestionInput.rows = 2;
+    this._elementsAiQuestionInput.placeholder = 'Ask about styles, layout, visibility, source ownership...';
+    this._elementsAiQuestionInput.addEventListener('input', () => {
+      this._autoResizeElementsQuestionInput();
+      this._updateElementsIntentUI();
+    });
+    this._elementsAiQuestionInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        event.stopPropagation();
+        void this._submitElementsInsight(undefined, this._resolveElementsInsightMode(this._elementsAiQuestionInput.value));
+      }
+    });
+
+    this._elementsAiSubmitButton = document.createElement('button');
+    this._elementsAiSubmitButton.classList.add('elements-ai-primary-button');
+    this._elementsAiSubmitButton.textContent = 'Send';
+    this._elementsAiSubmitButton.addEventListener('click', (event) => {
+      event.stopPropagation();
+      void this._submitElementsInsight(undefined, this._resolveElementsInsightMode(this._elementsAiQuestionInput.value));
+    });
+
+    askRow.appendChild(this._elementsAiQuestionInput);
+    askRow.appendChild(this._elementsAiSubmitButton);
+
+    const inputMetaRow = document.createElement('div');
+    inputMetaRow.classList.add('elements-ai-input-meta');
+
+    this._elementsAiIntentHint = document.createElement('span');
+    this._elementsAiIntentHint.classList.add('elements-ai-intent-hint');
+
+    inputMetaRow.appendChild(this._elementsAiIntentHint);
+
+    this._elementsAiLastRequest = document.createElement('div');
+    this._elementsAiLastRequest.classList.add('elements-ai-last-request', 'is-empty');
+
+    const quickActions = document.createElement('div');
+    quickActions.classList.add('elements-ai-quick-actions');
+    const quickPrompts = [
+      'Why is this style not applied?',
+      'Why is this layout off?',
+      'What source owns this node?',
+      'What should I inspect next?'
+    ];
+    for (const prompt of quickPrompts) {
+      const button = document.createElement('button');
+      button.classList.add('elements-ai-chip');
+      button.textContent = prompt;
+      button.addEventListener('click', (event) => {
+        event.stopPropagation();
+        this._elementsAiQuestionInput.value = prompt;
+        this._autoResizeElementsQuestionInput();
+        void this._submitElementsInsight(prompt);
+      });
+      quickActions.appendChild(button);
+    }
+
+    this._elementsAiAnswer = document.createElement('div');
+    this._elementsAiAnswer.classList.add('elements-ai-answer', 'is-empty');
+    this._elementsAiAnswer.addEventListener('scroll', () => {
+      const bottomOffset =
+          this._elementsAiAnswer.scrollHeight - this._elementsAiAnswer.scrollTop - this._elementsAiAnswer.clientHeight;
+      this._elementsAiAnswerShouldStickToBottom = bottomOffset < 28;
+    });
+
+    const composer = document.createElement('div');
+    composer.classList.add('elements-ai-composer');
+    composer.appendChild(inputMetaRow);
+    composer.appendChild(quickActions);
+    composer.appendChild(askRow);
+
+    this._elementsAiContainer.appendChild(header);
+    this._elementsAiContainer.appendChild(repoRow);
+    this._elementsAiContainer.appendChild(this._elementsAiAnswer);
+    this._elementsAiContainer.appendChild(composer);
+    crumbsContainer.appendChild(this._elementsAiContainer);
+
+    this._updateElementsAssistantSelection(null);
+    this._autoResizeElementsQuestionInput(true);
+    this._updateElementsIntentUI();
+  }
+
+  _persistElementsRepositoryUrl(): void {
+    Host.InspectorFrontendHost.setSourceRepositoryUrl(this._elementsAiRepoInput.value || null);
+    this._updateElementsAssistantMeta(this.selectedDOMNode());
+  }
+
+  async _submitElementsInsight(
+      presetQuestion?: string, mode: 'analyze'|'apply' = 'analyze'): Promise<void> {
+    const node = this.selectedDOMNode();
+    const question = (presetQuestion || this._elementsAiQuestionInput.value).trim();
+    if (!node || !question) {
+      return;
+    }
+
+    const resolvedMode = mode === 'analyze' && !presetQuestion ? this._resolveElementsInsightMode(question) : mode;
+    const requestId = `elements_insight_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    this._elementsAiPendingRequestId = requestId;
+    this._elementsAiAnswerShouldStickToBottom = true;
+    this._persistElementsRepositoryUrl();
+    this._setElementsLastRequest(question, resolvedMode, true);
+
+    const nodeSummary = await this._buildElementsInsightNodeSummary(node);
+    this._renderElementsInsightLoading(nodeSummary.selector, resolvedMode, question);
+    this._setElementsAssistantBusy(true);
+    elementsInsightRequestMap.set(requestId, this);
+    window.setTimeout(() => {
+      if (this._elementsAiPendingRequestId === requestId) {
+        elementsInsightRequestMap.delete(requestId);
+        this._handleElementsInsightError(
+            requestId,
+            `Elements Insight timed out after ${Math.round(ELEMENTS_INSIGHT_TIMEOUT_MS / 1000)}s. ` +
+                'The request may still be running or the AI Assistant may be unavailable. Try again.');
+      }
+    }, ELEMENTS_INSIGHT_TIMEOUT_MS);
+
+    Host.InspectorFrontendHost.sendWindowMessage({
+      type: 'lynx-elements-insight-request',
+      content: {
+        requestId,
+        mode: resolvedMode,
+        question,
+        nodeId: node.id,
+        nodeSummary,
+        sourceDirectory: Host.InspectorFrontendHost.getMountedSourceDirectory(),
+        repositoryUrl: Host.InspectorFrontendHost.getSourceRepositoryUrl(),
+        sourceEntry: nodeSummary.sourceEntry
+      }
+    });
+  }
+
+  async _buildElementsInsightNodeSummary(node: SDK.DOMModel.DOMNode): Promise<ElementsInsightNodeSummary> {
+    await node.originalNodeLocation();
+    const sourceEntry = this._extractSourceEntry(node);
+    const parentChain: Array<Record<string, any>> = [];
+    for (let current = node.parentNode, depth = 0; current && depth < 4; current = current.parentNode, depth++) {
+      parentChain.push(this._serializeNodePreview(current));
+    }
+
+    return {
+      nodeId: node.id,
+      backendNodeId: node.backendNodeId(),
+      selector: node.simpleSelector(),
+      nodeName: node.nodeName(),
+      nodeType: node.nodeType(),
+      childNodeCount: node.childNodeCount(),
+      path: node.path(),
+      attributes: this._attributesToObject(node),
+      textPreview: node.nodeValue().trim().slice(0, 160) || undefined,
+      sourceEntry,
+      parentChain,
+      childPreview: (node.children() || []).slice(0, 6).map(child => this._serializeNodePreview(child))
+    };
+  }
+
+  _serializeNodePreview(node: SDK.DOMModel.DOMNode): Record<string, any> {
+    return {
+      nodeId: node.id,
+      selector: node.simpleSelector(),
+      nodeName: node.nodeName(),
+      childNodeCount: node.childNodeCount(),
+      attributes: this._attributesToObject(node),
+      textPreview: node.nodeValue().trim().slice(0, 120) || undefined,
+    };
+  }
+
+  _attributesToObject(node: SDK.DOMModel.DOMNode): Record<string, string> {
+    const result: Record<string, string> = {};
+    const preferredNames = ['id', 'class', 'type', 'name', 'src', 'href', 'style', 'lynx-test-tag', 'data-testid'];
+    for (const name of preferredNames) {
+      const value = node.getAttribute(name);
+      if (typeof value === 'string' && value.length > 0) {
+        result[name] = value;
+      }
+    }
+    if (Object.keys(result).length > 0) {
+      return result;
+    }
+    for (const [name, attr] of Array.from(node._attributes.entries()).slice(0, 8)) {
+      result[name] = attr.value;
+    }
+    return result;
+  }
+
+  _extractSourceEntry(node: SDK.DOMModel.DOMNode): ElementsInsightSourceEntry|undefined {
+    const loc = node._nodeLoc;
+    if (!loc) {
+      return undefined;
+    }
+    return {
+      sourceURL: loc.sourceURL || undefined,
+      lineNumber: typeof loc.sourceLineNumber === 'number' ? loc.sourceLineNumber + 1 : undefined,
+      columnNumber: typeof loc.sourceColumnNumber === 'number' ? loc.sourceColumnNumber + 1 : undefined,
+    };
+  }
+
+  _handleElementsInsightResult(requestId: string, insight: string, sources?: string[]): void {
+    if (this._elementsAiPendingRequestId !== requestId) {
+      return;
+    }
+    const scrollState = this._captureElementsAnswerScrollState();
+    this._elementsAiPendingRequestId = null;
+    this._elementsAiProgressLog = [];
+    this._elementsAiStreamingInsight = '';
+    this._setElementsAssistantBusy(false);
+    this._setElementsLastRequest(this._elementsAiQuestionInput.value.trim(), this._resolveElementsInsightMode(this._elementsAiQuestionInput.value), false);
+    this._elementsAiAnswer.classList.remove('is-empty', 'is-error', 'is-streaming');
+    this._elementsAiAnswer.innerHTML = this._renderBasicMarkdown(insight);
+
+    if (Array.isArray(sources) && sources.length > 0) {
+      const sourcesBlock = document.createElement('div');
+      sourcesBlock.classList.add('elements-ai-sources');
+      for (const source of sources.slice(0, 4)) {
+        const tag = document.createElement('span');
+        tag.classList.add('elements-ai-source-tag');
+        tag.textContent = source;
+        sourcesBlock.appendChild(tag);
+      }
+      this._elementsAiAnswer.appendChild(sourcesBlock);
+    }
+    this._restoreElementsAnswerScrollState(scrollState);
+  }
+
+  _handleElementsInsightError(requestId: string, error: string): void {
+    if (this._elementsAiPendingRequestId !== requestId) {
+      return;
+    }
+    const scrollState = this._captureElementsAnswerScrollState();
+    this._elementsAiPendingRequestId = null;
+    this._elementsAiProgressLog = [];
+    this._elementsAiStreamingInsight = '';
+    this._setElementsAssistantBusy(false);
+    this._setElementsLastRequest(this._elementsAiQuestionInput.value.trim(), this._resolveElementsInsightMode(this._elementsAiQuestionInput.value), false);
+    this._elementsAiAnswer.classList.remove('is-empty', 'is-streaming');
+    this._elementsAiAnswer.classList.add('is-error');
+    this._elementsAiAnswer.textContent = error;
+    this._restoreElementsAnswerScrollState(scrollState);
+  }
+
+  _handleElementsInsightProgress(requestId: string, phase?: string, message?: string, text?: string): void {
+    if (this._elementsAiPendingRequestId !== requestId) {
+      return;
+    }
+    if (message) {
+      const normalized = message.trim();
+      if (normalized && this._elementsAiProgressLog[this._elementsAiProgressLog.length - 1] !== normalized) {
+        this._elementsAiProgressLog.push(normalized);
+        if (this._elementsAiProgressLog.length > 6) {
+          this._elementsAiProgressLog = this._elementsAiProgressLog.slice(-6);
+        }
+      }
+    }
+    if (typeof text === 'string' && text.length > 0) {
+      this._elementsAiStreamingInsight =
+          phase === 'delta' ? `${this._elementsAiStreamingInsight}${text}` : text;
+    }
+    this._renderElementsInsightProgress();
+  }
+
+  _handleMountedSourceDirectory(path: string): void {
+    Host.InspectorFrontendHost.setMountedSourceDirectory(path);
+    this._updateElementsAssistantMeta(this.selectedDOMNode());
+  }
+
+  _setElementsAssistantBusy(isBusy: boolean): void {
+    this._elementsAiQuestionInput.readOnly = isBusy;
+    this._elementsAiSubmitButton.disabled = isBusy;
+    this._elementsAiAttachButton.disabled = isBusy;
+    this._elementsAiRepoInput.readOnly = isBusy;
+    this._updateElementsIntentUI();
+  }
+
+  _renderElementsInsightLoading(selector: string, mode: 'analyze'|'apply', question: string): void {
+    this._elementsAiAnswerShouldStickToBottom = true;
+    this._elementsAiAnswer.classList.remove('is-empty', 'is-error');
+    this._elementsAiProgressLog = [
+      `Working on ${selector}.`,
+      mode === 'apply' ?
+          'Inspecting source ownership, runtime styles, and the requested source update...' :
+          'Inspecting DOM structure, computed styles, source entry, repository hint, and Lynx knowledge...',
+      `Request: ${question}`
+    ];
+    this._elementsAiStreamingInsight = '';
+    this._renderElementsInsightProgress();
+  }
+
+  _renderElementsInsightIdle(_message: string): void {
+    this._elementsAiAnswerShouldStickToBottom = true;
+    this._elementsAiAnswer.classList.remove('is-streaming');
+    this._elementsAiAnswer.classList.remove('is-error');
+    this._elementsAiAnswer.classList.add('is-empty');
+    this._elementsAiAnswer.textContent = '';
+    this._elementsAiAnswer.scrollTop = 0;
+  }
+
+  _updateElementsAssistantSelection(selectedNode: SDK.DOMModel.DOMNode|null): void {
+    const activeNodeId = selectedNode?.id ?? null;
+    if (this._elementsAiActiveNodeId !== activeNodeId) {
+      this._elementsAiActiveNodeId = activeNodeId;
+      this._elementsAiPendingRequestId = null;
+      this._elementsAiProgressLog = [];
+      this._elementsAiStreamingInsight = '';
+      this._elementsAiAnswerShouldStickToBottom = true;
+      this._setElementsAssistantBusy(false);
+      this._elementsAiQuestionInput.value = '';
+      this._autoResizeElementsQuestionInput(true);
+      this._setElementsLastRequest('', 'analyze', false);
+      this._renderElementsInsightIdle(
+          selectedNode ?
+              'Ask why this node looks wrong, which source owns it, or what to inspect next.' :
+              'Select an element to inspect its styles, layout, source entry, and Lynx-specific guidance.');
+    }
+
+    this._elementsAiNodeBadge.textContent =
+        selectedNode ? `${selectedNode.simpleSelector()}  ·  #${selectedNode.id}` : 'No node selected';
+    this._elementsAiQuestionInput.disabled = !selectedNode;
+    this._elementsAiSubmitButton.disabled = !selectedNode;
+    this._elementsAiQuestionInput.placeholder = selectedNode ?
+        'Ask about styles, layout, visibility, source ownership...' :
+        'Select an element first, then ask for analysis or changes';
+    this._updateElementsAssistantMeta(selectedNode);
+    this._updateElementsIntentUI();
+
+    if (selectedNode) {
+      void selectedNode.originalNodeLocation().then(() => {
+        if (this.selectedDOMNode()?.id === selectedNode.id) {
+          this._updateElementsAssistantMeta(selectedNode);
+        }
+      });
+    }
+  }
+
+  _updateElementsAssistantMeta(selectedNode: SDK.DOMModel.DOMNode|null): void {
+    while (this._elementsAiSourceMeta.firstChild) {
+      this._elementsAiSourceMeta.removeChild(this._elementsAiSourceMeta.firstChild);
+    }
+
+    const appendMeta = (text: string): void => {
+      const chip = document.createElement('span');
+      chip.classList.add('elements-ai-meta-chip');
+      chip.textContent = text;
+      this._elementsAiSourceMeta.appendChild(chip);
+    };
+
+    const sourceDirectory = Host.InspectorFrontendHost.getMountedSourceDirectory();
+    if (sourceDirectory) {
+      const dirName = sourceDirectory.split('/').pop() || sourceDirectory;
+      appendMeta(`Source ${dirName}`);
+      this._elementsAiAttachButton.textContent = dirName;
+      this._elementsAiAttachButton.title = sourceDirectory;
+    } else {
+      this._elementsAiAttachButton.textContent = 'Attach source';
+      this._elementsAiAttachButton.title = 'Attach a local source directory';
+    }
+
+    const repositoryUrl = Host.InspectorFrontendHost.getSourceRepositoryUrl();
+    if (repositoryUrl) {
+      appendMeta('Repo connected');
+    }
+
+    const sourceEntry = selectedNode ? this._extractSourceEntry(selectedNode) : undefined;
+    if (sourceEntry?.sourceURL) {
+      appendMeta(this._formatSourceEntry(sourceEntry));
+    } else if (selectedNode) {
+      appendMeta('No source map entry yet');
+    }
+  }
+
+  _formatSourceEntry(sourceEntry: ElementsInsightSourceEntry): string {
+    const sourceURL = sourceEntry.sourceURL || 'Unknown source';
+    const fileName = sourceURL.split('/').pop() || sourceURL;
+    const line = typeof sourceEntry.lineNumber === 'number' ? `:${sourceEntry.lineNumber}` : '';
+    return `${fileName}${line}`;
+  }
+
+  _renderBasicMarkdown(text: string): string {
+    let html = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    html = html.replace(/```([^`]*?)```/gs, '<pre><code>$1</code></pre>');
+    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\n/g, '<br>');
+    return html;
+  }
+
+  _renderElementsInsightProgress(): void {
+    const scrollState = this._captureElementsAnswerScrollState();
+    this._elementsAiAnswer.classList.remove('is-empty', 'is-error');
+    this._elementsAiAnswer.classList.add('is-streaming');
+    while (this._elementsAiAnswer.firstChild) {
+      this._elementsAiAnswer.removeChild(this._elementsAiAnswer.firstChild);
+    }
+
+    const liveStatus = document.createElement('div');
+    liveStatus.classList.add('elements-ai-live-status');
+    liveStatus.textContent = 'Live response';
+    this._elementsAiAnswer.appendChild(liveStatus);
+
+    const progressBlock = document.createElement('div');
+    progressBlock.classList.add('elements-ai-progress-list');
+    for (const entry of this._elementsAiProgressLog) {
+      const row = document.createElement('div');
+      row.classList.add('elements-ai-progress-step');
+      row.textContent = entry;
+      progressBlock.appendChild(row);
+    }
+    this._elementsAiAnswer.appendChild(progressBlock);
+
+    if (this._elementsAiStreamingInsight) {
+      const previewBlock = document.createElement('div');
+      previewBlock.classList.add('elements-ai-streaming-answer');
+      previewBlock.innerHTML = this._renderBasicMarkdown(this._elementsAiStreamingInsight);
+      this._elementsAiAnswer.appendChild(previewBlock);
+    } else {
+      const placeholder = document.createElement('div');
+      placeholder.classList.add('elements-ai-progress-placeholder');
+      placeholder.textContent = 'Codex is still working. The live answer will appear here, and you can scroll while it updates.';
+      this._elementsAiAnswer.appendChild(placeholder);
+    }
+    this._restoreElementsAnswerScrollState(scrollState);
+  }
+
+  _autoResizeElementsQuestionInput(resetToMinHeight: boolean = false): void {
+    const input = this._elementsAiQuestionInput;
+    if (!input) {
+      return;
+    }
+
+    const minHeight = 52;
+    const maxHeight = 140;
+    input.style.height = 'auto';
+    const nextHeight = resetToMinHeight ? minHeight : Math.min(Math.max(input.scrollHeight, minHeight), maxHeight);
+    input.style.height = `${nextHeight}px`;
+    input.style.overflowY = input.scrollHeight > maxHeight ? 'auto' : 'hidden';
+  }
+
+  _resolveElementsInsightMode(question: string): 'analyze'|'apply' {
+    const normalized = question.trim().toLowerCase();
+    if (!normalized) {
+      return 'analyze';
+    }
+
+    const applyPatterns = [
+      /修改/,
+      /改成/,
+      /改为/,
+      /改一下/,
+      /改下/,
+      /变成/,
+      /加边框/,
+      /加上边框/,
+      /帮我改/,
+      /在源码中/,
+      /修改源码/,
+      /\bapply\b/,
+      /\bedit\b/,
+      /\bchange\b/,
+      /\bupdate\b/,
+      /\bmake\b/,
+      /\bturn\b/,
+      /\bset\b/,
+      /add border/,
+      /border.+green/,
+    ];
+    return applyPatterns.some(pattern => pattern.test(normalized)) ? 'apply' : 'analyze';
+  }
+
+  _updateElementsIntentUI(): void {
+    if (!this.selectedDOMNode()) {
+      this._elementsAiIntentHint.textContent = 'Select an element first, then ask Codex to inspect or update it.';
+      return;
+    }
+    const question = this._elementsAiQuestionInput.value.trim();
+    const mode = this._resolveElementsInsightMode(question);
+    const isBusy = Boolean(this._elementsAiPendingRequestId);
+    const hasQuestion = question.length > 0;
+
+    if (!hasQuestion) {
+      this._elementsAiIntentHint.textContent =
+          'Describe the issue or change you want. Press Enter and Codex will decide the next step.';
+    } else if (isBusy) {
+      this._elementsAiIntentHint.textContent =
+          'Codex is working on this request. The result keeps streaming above, and your draft stays here.';
+    } else {
+      this._elementsAiIntentHint.textContent =
+          mode === 'apply' ?
+              'This sounds like a source change. Press Enter and Codex will try to update it inline.' :
+              'This sounds like a debug question. Press Enter and Codex will inspect it inline.';
+    }
+  }
+
+  _captureElementsAnswerScrollState(): {stickToBottom: boolean, scrollTop: number} {
+    return {
+      stickToBottom: this._elementsAiAnswerShouldStickToBottom,
+      scrollTop: this._elementsAiAnswer.scrollTop,
+    };
+  }
+
+  _restoreElementsAnswerScrollState(
+      state: {stickToBottom: boolean, scrollTop: number}, resetToTop: boolean = false): void {
+    if (resetToTop) {
+      this._elementsAiAnswer.scrollTop = 0;
+      return;
+    }
+    if (state.stickToBottom) {
+      this._elementsAiAnswer.scrollTop = this._elementsAiAnswer.scrollHeight;
+      return;
+    }
+    this._elementsAiAnswer.scrollTop = state.scrollTop;
+  }
+
+  _setElementsLastRequest(question: string, mode: 'analyze'|'apply', isBusy: boolean): void {
+    if (!question) {
+      this._elementsAiLastRequest.classList.add('is-empty');
+      this._elementsAiLastRequest.textContent = 'Last request will stay visible here while Codex works.';
+      return;
+    }
+
+    this._elementsAiLastRequest.classList.remove('is-empty');
+    const prefix = isBusy ? 'Working on' : 'Last request';
+    this._elementsAiLastRequest.textContent = `${prefix}: ${question}`;
   }
 
   _initializeFullAccessibilityTreeView(stackElement: UI.Widget.WidgetElement): void {
@@ -551,6 +1184,7 @@ export class ElementsPanel extends UI.Panel.Panel implements UI.SearchableView.S
     }
 
     UI.Context.Context.instance().setFlavor(SDK.DOMModel.DOMNode, selectedNode);
+    this._updateElementsAssistantSelection(selectedNode);
 
     if (!selectedNode) {
       return;

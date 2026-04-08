@@ -546,6 +546,13 @@
   line-height: 1.5;
   flex: none;
   flex-basis: 100%;
+  max-height: 360px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+  touch-action: pan-y;
 }
 
 .console-insight-header {
@@ -553,6 +560,54 @@
   margin-bottom: 8px;
   font-size: 13px;
   color: var(--color-text-primary);
+}
+
+.console-insight-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.console-insight-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.console-insight-source-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border: 1px solid var(--color-details-hairline);
+  border-radius: 999px;
+  background-color: var(--color-background);
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+
+.console-insight-action {
+  min-height: 24px;
+  padding: 0 10px;
+  border: 1px solid var(--color-details-hairline);
+  border-radius: 999px;
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.console-insight-action.is-primary {
+  border-color: color-mix(in srgb, var(--color-primary) 28%, var(--color-details-hairline));
+  color: var(--color-primary);
+  background-color: color-mix(in srgb, var(--color-primary) 10%, var(--color-background));
+}
+
+.console-insight-action:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 .console-insight-content {
@@ -584,6 +639,51 @@
 
 .console-insight-content strong {
   color: var(--color-text-primary);
+}
+
+.console-insight-progress-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.console-insight-live-status {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background-color: color-mix(in srgb, var(--color-primary) 10%, var(--color-background-elevation-1));
+  color: var(--color-primary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.console-insight-live-status::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.9;
+}
+
+.console-insight-progress-step {
+  color: var(--color-text-secondary);
+}
+
+.console-insight-progress-step::before {
+  content: "•";
+  margin-right: 6px;
+  color: var(--color-primary);
+}
+
+.console-insight-streaming {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-details-hairline);
 }
 
 .console-insight-sources {

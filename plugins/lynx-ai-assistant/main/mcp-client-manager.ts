@@ -4,7 +4,7 @@
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import { spawn, ChildProcess } from 'child_process';
+import { ChildProcess } from 'child_process';
 
 export interface MCPServerConfig {
   id: string;
@@ -105,17 +105,11 @@ export class MCPClientManager {
 
       this.servers.set(id, serverInfo);
 
-      // Spawn the MCP server process
-      const childProcess = spawn(config.command, config.args || [], {
-        env: { ...process.env, ...config.env },
-        stdio: ['pipe', 'pipe', 'pipe']
-      });
-
       // Create transport and client
       const transport = new StdioClientTransport({
         command: config.command,
         args: config.args || [],
-        env: config.env
+        env: config.env ? { ...process.env, ...config.env } : undefined
       });
 
       const client = new Client({
@@ -127,24 +121,23 @@ export class MCPClientManager {
         }
       });
 
-      // Handle process events
-      childProcess.on('error', (error) => {
-        console.error(`MCP server ${id} process error:`, error);
+      transport.onerror = (error) => {
+        console.error(`MCP server ${id} transport error:`, error);
         serverInfo.status = 'error';
         serverInfo.error = error.message;
-      });
+      };
 
-      childProcess.on('exit', (code, signal) => {
-        console.log(`MCP server ${id} exited with code ${code} and signal ${signal}`);
+      transport.onclose = () => {
+        console.log(`MCP server ${id} transport closed`);
         serverInfo.status = 'disconnected';
-      });
+      };
 
       // Connect the client
       await client.connect(transport);
       
       // Update server info
       serverInfo.client = client;
-      serverInfo.process = childProcess;
+      serverInfo.process = undefined;
       serverInfo.status = 'connected';
       serverInfo.connectedAt = new Date();
 

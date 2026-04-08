@@ -175,21 +175,37 @@ const elementToMessage = new WeakMap<Element, ConsoleViewMessage>();
 
 // Console Insight: map requestId → ConsoleViewMessage for async response handling
 const insightRequestMap = new Map<string, ConsoleViewMessage>();
+const openInsightPanels = new Set<ConsoleViewMessage>();
 
 window.addEventListener('message', (event: MessageEvent) => {
   if (event.data?.type === 'lynx-console-insight-response') {
-    const { requestId, status, insight, sources, error } = event.data.content || {};
+    const { requestId, status, insight, sources, error, phase, message, text } = event.data.content || {};
     const viewMessage = insightRequestMap.get(requestId);
     if (!viewMessage) {
       return;
     }
 
+    if (status === 'progress') {
+      viewMessage._renderInsightProgress(phase, message, text);
+      return;
+    }
     if (status === 'done') {
       viewMessage._renderInsightResult(insight, sources);
       insightRequestMap.delete(requestId);
     } else if (status === 'error') {
       viewMessage._renderInsightError(error || 'Unknown error');
       insightRequestMap.delete(requestId);
+    }
+    return;
+  }
+
+  if (event.data?.type === 'lynx-attach-source-response') {
+    const { path, canceled } = event.data.content || {};
+    if (!canceled && path) {
+      Host.InspectorFrontendHost.setMountedSourceDirectory(path);
+      for (const panel of openInsightPanels) {
+        panel._handleConsoleMountedSourceDirectory(path);
+      }
     }
   }
 });
@@ -254,6 +270,10 @@ export class ConsoleViewMessage implements ConsoleViewportElement {
   _insightPanel: HTMLElement|null;
   _insightRequestId: string|null;
   _insightVisible: boolean;
+  _insightProgressLog: string[];
+  _insightStreamingText: string;
+  _insightIsLoading: boolean;
+  _insightShouldStickToBottom: boolean;
 
 
   constructor(
@@ -293,6 +313,10 @@ export class ConsoleViewMessage implements ConsoleViewportElement {
     this._insightPanel = null;
     this._insightRequestId = null;
     this._insightVisible = false;
+    this._insightProgressLog = [];
+    this._insightStreamingText = '';
+    this._insightIsLoading = false;
+    this._insightShouldStickToBottom = true;
 
     this._isDevMode = new URLSearchParams(location.search).get('dev')?.split(':').includes('console') ?? false;
   }
@@ -1485,30 +1509,161 @@ export class ConsoleViewMessage implements ConsoleViewportElement {
 
   _toggleConsoleInsight(): void {
     if (this._insightVisible && this._insightPanel) {
-      // Collapse the insight panel
-      this._insightPanel.remove();
-      this._insightPanel = null;
-      this._insightVisible = false;
-      this._cachedHeight = 0;
-      this._messageResized({} as Common.EventTarget.EventTargetEvent);
+      this._closeConsoleInsight();
       return;
     }
 
-    // Create the insight panel
-    const requestId = `insight_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    this._insightRequestId = requestId;
     this._insightVisible = true;
+    this._ensureConsoleInsightPanel();
+    this._requestConsoleInsightAnalysis();
+  }
 
+  _closeConsoleInsight(): void {
+    if (this._insightRequestId) {
+      insightRequestMap.delete(this._insightRequestId);
+    }
+    if (this._insightPanel) {
+      this._insightPanel.remove();
+    }
+    this._insightPanel = null;
+    this._insightRequestId = null;
+    this._insightIsLoading = false;
+    this._insightVisible = false;
+    openInsightPanels.delete(this);
+    this._cachedHeight = 0;
+    this._messageResized({} as Common.EventTarget.EventTargetEvent);
+  }
+
+  _ensureConsoleInsightPanel(): void {
+    if (this._insightPanel) {
+      return;
+    }
     this._insightPanel = document.createElement('div');
     this._insightPanel.classList.add('console-insight-panel');
+    this._insightPanel.addEventListener('scroll', () => {
+      const bottomOffset =
+          this._insightPanel!.scrollHeight - this._insightPanel!.scrollTop - this._insightPanel!.clientHeight;
+      this._insightShouldStickToBottom = bottomOffset < 28;
+    });
 
-    // Loading state
-    const loadingEl = document.createElement('div');
-    loadingEl.classList.add('console-insight-loading');
-    loadingEl.textContent = 'Analyzing error...';
-    this._insightPanel.appendChild(loadingEl);
+    if (this._element) {
+      this._element.appendChild(this._insightPanel);
+    }
+    openInsightPanels.add(this);
+  }
 
-    // Dismiss button
+  _requestConsoleInsightAnalysis(): void {
+    this._ensureConsoleInsightPanel();
+    this._insightIsLoading = true;
+    this._insightShouldStickToBottom = true;
+
+    const requestId = `insight_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    this._insightRequestId = requestId;
+    this._insightProgressLog = [
+      'Collecting console context...',
+      Host.InspectorFrontendHost.getMountedSourceDirectory() ?
+          'Using the mounted source directory as additional context.' :
+          'No source directory mounted yet. Attach one to let Codex inspect local files.',
+      'Preparing a Codex insight request...'
+    ];
+    this._insightStreamingText = '';
+    this._renderInsightProgress(undefined, 'Analyzing error and streaming progress...');
+
+    insightRequestMap.set(requestId, this);
+
+    let errorMessage = this.text;
+    if (errorMessage.length > 2000) {
+      errorMessage = errorMessage.substring(0, 2000) + `... [truncated, original: ${this.text.length} chars]`;
+    }
+
+    const runtimeModel = this._message.runtimeModel();
+    const debuggerModel = runtimeModel?.debuggerModel();
+    const scripts = debuggerModel?.scripts().slice(0, 200).map(script => ({
+      scriptId: script.scriptId,
+      url: script.sourceURL,
+    })) ?? [];
+    const sourceDirectory = Host.InspectorFrontendHost.getMountedSourceDirectory();
+    window.parent.postMessage({
+      type: 'lynx-console-insight-debug',
+      content: {
+        requestId,
+        stage: 'frontend-postmessage',
+        scriptsCount: scripts.length,
+        scriptsPreview: scripts.slice(0, 5),
+      }
+    }, '*');
+    window.parent.postMessage({
+      type: 'lynx-console-insight-request',
+      content: {
+        requestId,
+        errorMessage,
+        stackTrace: this._message.stackTrace,
+        sourceDirectory,
+        scripts
+      }
+    }, '*');
+  }
+
+  _handleConsoleMountedSourceDirectory(path: string): void {
+    Host.InspectorFrontendHost.setMountedSourceDirectory(path);
+    if (!this._insightVisible || !this._insightPanel) {
+      return;
+    }
+
+    if (this._insightIsLoading) {
+      const dirName = path.split('/').pop() || path;
+      this._renderInsightProgress(undefined, `Mounted source ${dirName}. Retry after this pass to include local files.`);
+      return;
+    }
+    this._requestConsoleInsightAnalysis();
+  }
+
+  _requestConsoleSourceAttach(): void {
+    Host.InspectorFrontendHost.sendWindowMessage({type: 'lynx-attach-source-request'});
+  }
+
+  _appendInsightToolbar(container: HTMLElement): void {
+    const toolbar = document.createElement('div');
+    toolbar.classList.add('console-insight-toolbar');
+
+    const mountedSource = Host.InspectorFrontendHost.getMountedSourceDirectory();
+    const sourceBadge = document.createElement('span');
+    sourceBadge.classList.add('console-insight-source-badge');
+    sourceBadge.textContent = mountedSource ? `Source ${mountedSource.split('/').pop() || mountedSource}` : 'No source attached';
+    sourceBadge.title = mountedSource || 'Attach a local source directory for source-aware analysis';
+    toolbar.appendChild(sourceBadge);
+
+    const actions = document.createElement('div');
+    actions.classList.add('console-insight-actions');
+
+    const attachButton = document.createElement('button');
+    attachButton.classList.add('console-insight-action');
+    attachButton.textContent = mountedSource ? 'Change source' : 'Attach source';
+    attachButton.addEventListener('click', (event: Event) => {
+      event.stopPropagation();
+      this._requestConsoleSourceAttach();
+    });
+    actions.appendChild(attachButton);
+
+    if (mountedSource) {
+      const retryButton = document.createElement('button');
+      retryButton.classList.add('console-insight-action', 'is-primary');
+      retryButton.textContent = this._insightIsLoading ? 'Working...' : 'Retry with source';
+      retryButton.disabled = this._insightIsLoading;
+      retryButton.addEventListener('click', (event: Event) => {
+        event.stopPropagation();
+        if (!this._insightIsLoading) {
+          this._requestConsoleInsightAnalysis();
+        }
+      });
+      actions.appendChild(retryButton);
+    }
+
+    toolbar.appendChild(actions);
+    container.appendChild(toolbar);
+  }
+
+  _appendInsightDismissButton(container: HTMLElement): void {
     const dismissBtn = document.createElement('button');
     dismissBtn.classList.add('console-insight-dismiss');
     dismissBtn.textContent = '\u2715';
@@ -1516,41 +1671,17 @@ export class ConsoleViewMessage implements ConsoleViewportElement {
       e.stopPropagation();
       this._toggleConsoleInsight();
     });
-    this._insightPanel.appendChild(dismissBtn);
-
-    // Insert panel after contentElement within _element
-    if (this._element) {
-      this._element.appendChild(this._insightPanel);
-      this._cachedHeight = 0;
-      this._messageResized({} as Common.EventTarget.EventTargetEvent);
-    }
-
-    // Register for async response
-    insightRequestMap.set(requestId, this);
-
-    // Truncate error message for API
-    let errorMessage = this.text;
-    if (errorMessage.length > 2000) {
-      errorMessage = errorMessage.substring(0, 2000) + `... [truncated, original: ${this.text.length} chars]`;
-    }
-
-    // Send request via postMessage to parent (AI assistant plugin)
-    const sourceDirectory = Host.InspectorFrontendHost.getMountedSourceDirectory();
-    window.parent.postMessage({
-      type: 'lynx-console-insight-request',
-      content: {
-        requestId,
-        errorMessage,
-        stackTrace: this._message.stackTrace,
-        sourceDirectory
-      }
-    }, '*');
+    container.appendChild(dismissBtn);
   }
 
   _renderInsightResult(insight: string, sources?: string[]): void {
     if (!this._insightPanel) {
       return;
     }
+    const scrollState = this._captureInsightScrollState();
+    this._insightIsLoading = false;
+    this._insightProgressLog = [];
+    this._insightStreamingText = '';
     this._insightPanel.removeChildren();
 
     // Header
@@ -1558,6 +1689,7 @@ export class ConsoleViewMessage implements ConsoleViewportElement {
     header.classList.add('console-insight-header');
     header.textContent = '\uD83D\uDCA1 Console Insight';
     this._insightPanel.appendChild(header);
+    this._appendInsightToolbar(this._insightPanel);
 
     // Content with basic markdown rendering
     const content = document.createElement('div');
@@ -1573,16 +1705,9 @@ export class ConsoleViewMessage implements ConsoleViewportElement {
       this._insightPanel.appendChild(sourcesEl);
     }
 
-    // Dismiss button
-    const dismissBtn = document.createElement('button');
-    dismissBtn.classList.add('console-insight-dismiss');
-    dismissBtn.textContent = '\u2715';
-    dismissBtn.addEventListener('click', (e: Event) => {
-      e.stopPropagation();
-      this._toggleConsoleInsight();
-    });
-    this._insightPanel.appendChild(dismissBtn);
+    this._appendInsightDismissButton(this._insightPanel);
 
+    this._restoreInsightScrollState(scrollState);
     this._cachedHeight = 0;
     this._messageResized({} as Common.EventTarget.EventTargetEvent);
   }
@@ -1591,25 +1716,111 @@ export class ConsoleViewMessage implements ConsoleViewportElement {
     if (!this._insightPanel) {
       return;
     }
+    const scrollState = this._captureInsightScrollState();
+    this._insightIsLoading = false;
+    this._insightProgressLog = [];
+    this._insightStreamingText = '';
     this._insightPanel.removeChildren();
+
+    const header = document.createElement('div');
+    header.classList.add('console-insight-header');
+    header.textContent = '\uD83D\uDCA1 Console Insight';
+    this._insightPanel.appendChild(header);
+    this._appendInsightToolbar(this._insightPanel);
 
     const errorEl = document.createElement('div');
     errorEl.classList.add('console-insight-error');
     errorEl.textContent = `Failed to analyze: ${error}`;
     this._insightPanel.appendChild(errorEl);
 
-    // Dismiss button
-    const dismissBtn = document.createElement('button');
-    dismissBtn.classList.add('console-insight-dismiss');
-    dismissBtn.textContent = '\u2715';
-    dismissBtn.addEventListener('click', (e: Event) => {
-      e.stopPropagation();
-      this._toggleConsoleInsight();
-    });
-    this._insightPanel.appendChild(dismissBtn);
+    this._appendInsightDismissButton(this._insightPanel);
 
+    this._restoreInsightScrollState(scrollState);
     this._cachedHeight = 0;
     this._messageResized({} as Common.EventTarget.EventTargetEvent);
+  }
+
+  _renderInsightProgress(phase?: string, message?: string, text?: string): void {
+    if (!this._insightPanel) {
+      return;
+    }
+    const scrollState = this._captureInsightScrollState();
+    this._insightIsLoading = true;
+
+    if (message) {
+      const normalized = message.trim();
+      if (normalized && this._insightProgressLog[this._insightProgressLog.length - 1] !== normalized) {
+        this._insightProgressLog.push(normalized);
+        if (this._insightProgressLog.length > 6) {
+          this._insightProgressLog = this._insightProgressLog.slice(-6);
+        }
+      }
+    }
+    if (typeof text === 'string' && text.length > 0) {
+      this._insightStreamingText = phase === 'delta' ? `${this._insightStreamingText}${text}` : text;
+    }
+
+    this._insightPanel.removeChildren();
+
+    const header = document.createElement('div');
+    header.classList.add('console-insight-header');
+    header.textContent = '\uD83D\uDCA1 Console Insight';
+    this._insightPanel.appendChild(header);
+    this._appendInsightToolbar(this._insightPanel);
+
+    const liveStatus = document.createElement('div');
+    liveStatus.classList.add('console-insight-live-status');
+    liveStatus.textContent = 'Live response';
+    this._insightPanel.appendChild(liveStatus);
+
+    const progressList = document.createElement('div');
+    progressList.classList.add('console-insight-progress-list');
+    for (const entry of this._insightProgressLog) {
+      const row = document.createElement('div');
+      row.classList.add('console-insight-progress-step');
+      row.textContent = entry;
+      progressList.appendChild(row);
+    }
+    this._insightPanel.appendChild(progressList);
+
+    if (this._insightStreamingText) {
+      const content = document.createElement('div');
+      content.classList.add('console-insight-content', 'console-insight-streaming');
+      content.innerHTML = this._renderBasicMarkdown(this._insightStreamingText);
+      this._insightPanel.appendChild(content);
+    } else {
+      const placeholder = document.createElement('div');
+      placeholder.classList.add('console-insight-loading');
+      placeholder.textContent = 'Codex is still working. The live answer will appear here, and you can scroll while it updates.';
+      this._insightPanel.appendChild(placeholder);
+    }
+
+    this._appendInsightDismissButton(this._insightPanel);
+
+    this._restoreInsightScrollState(scrollState);
+    this._cachedHeight = 0;
+    this._messageResized({} as Common.EventTarget.EventTargetEvent);
+  }
+
+  _captureInsightScrollState(): {stickToBottom: boolean, scrollTop: number} {
+    if (!this._insightPanel) {
+      return {stickToBottom: true, scrollTop: 0};
+    }
+    return {
+      stickToBottom: this._insightShouldStickToBottom,
+      scrollTop: this._insightPanel.scrollTop,
+    };
+  }
+
+  _restoreInsightScrollState(state: {stickToBottom: boolean, scrollTop: number}): void {
+    if (!this._insightPanel) {
+      return;
+    }
+    if (state.stickToBottom) {
+      this._insightPanel.scrollTop = this._insightPanel.scrollHeight;
+      return;
+    }
+    this._insightPanel.scrollTop = state.scrollTop;
   }
 
   _renderBasicMarkdown(text: string): string {

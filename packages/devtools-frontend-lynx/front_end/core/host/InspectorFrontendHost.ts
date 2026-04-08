@@ -466,16 +466,48 @@ export function isUnderTest(prefs?: {
 }
 
 const IFRAME_SESSIONID = parseInt(new URLSearchParams(location.search).get("sessionId") ?? '0');
+const MOUNTED_SOURCE_DIRECTORY_STORAGE_KEY = 'lynx-devtool-mounted-source-directory';
+const SOURCE_REPOSITORY_URL_STORAGE_KEY = 'lynx-devtool-source-repository-url';
+
+const readSessionValue = (key: string): string | null => {
+  try {
+    return window.sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+
+const writeSessionValue = (key: string, value: string | null): void => {
+  try {
+    if (value === null) {
+      window.sessionStorage.removeItem(key);
+    } else {
+      window.sessionStorage.setItem(key, value);
+    }
+  } catch {
+  }
+};
 
 // Mounted source directory for AI Console Insights
-let _mountedSourceDirectory: string | null = null;
+let _mountedSourceDirectory: string | null = readSessionValue(MOUNTED_SOURCE_DIRECTORY_STORAGE_KEY);
+let _sourceRepositoryUrl: string | null = readSessionValue(SOURCE_REPOSITORY_URL_STORAGE_KEY);
 
 export const setMountedSourceDirectory = (path: string): void => {
   _mountedSourceDirectory = path;
+  writeSessionValue(MOUNTED_SOURCE_DIRECTORY_STORAGE_KEY, path);
 };
 
 export const getMountedSourceDirectory = (): string | null => {
   return _mountedSourceDirectory;
+};
+
+export const setSourceRepositoryUrl = (url: string | null): void => {
+  _sourceRepositoryUrl = url ? url.trim() || null : null;
+  writeSessionValue(SOURCE_REPOSITORY_URL_STORAGE_KEY, _sourceRepositoryUrl);
+};
+
+export const getSourceRepositoryUrl = (): string | null => {
+  return _sourceRepositoryUrl;
 };
 
 export const sendWindowMessage = (msg: {

@@ -9,24 +9,30 @@ import { AIAssistantBridgeType } from '../bridge';
 import { AIAssistantView } from './components/AIAssistantView';
 
 export default definePlugin<AIAssistantBridgeType>((context) => {
-  // #region debug-point
   const reportDbg = (payload: Record<string, any>) => {
     try {
-      void fetch('http://127.0.0.1:17777/event', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId: 'lynx-ai-assistant-device-tools',
-          runId: 'pre-fix',
-          hypothesisId: payload.hypothesisId ?? 'H?',
-          msg: payload.msg ?? 'ai-assistant',
-          ts: Date.now(),
-          data: payload.data ?? payload
-        })
+      const preview =
+        payload && typeof payload === 'object'
+          ? JSON.stringify(
+              {
+                hypothesisId: payload.hypothesisId ?? 'H?',
+                msg: payload.msg ?? 'ai-assistant',
+                location: payload.location,
+                data: payload.data
+              },
+              null,
+              0
+            )
+          : String(payload);
+      void context.asyncBridge.debugLog({
+        hypothesisId: payload.hypothesisId ?? 'H?',
+        msg: payload.msg ?? 'ai-assistant',
+        location: payload.location,
+        data: payload.data
       });
+      console.log('[AI dbg][renderer]', preview);
     } catch (_) {}
   };
-  // #endregion debug-point
 
   const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
 
@@ -51,10 +57,46 @@ export default definePlugin<AIAssistantBridgeType>((context) => {
     const type = socketEvent.data?.type;
     if (type !== 'CDP') return null;
     const data = socketEvent.data?.data ?? {};
-    if (expectedClientId !== undefined && data.client_id !== expectedClientId && socketEvent.data?.sender !== expectedClientId) {
+    const hasClientIdentity = data.client_id !== undefined || socketEvent.data?.sender !== undefined;
+    if (
+      expectedClientId !== undefined &&
+      hasClientIdentity &&
+      data.client_id !== expectedClientId &&
+      socketEvent.data?.sender !== expectedClientId
+    ) {
+      // #region debug-point B:extract-client-filter
+      reportDbg({
+        hypothesisId: 'B',
+        location: 'renderer/index.tsx:55',
+        msg: '[DEBUG] extractCdpMessage filtered by client identity',
+        data: {
+          expectedClientId,
+          dataClientId: data.client_id,
+          sender: socketEvent.data?.sender,
+          expectedSessionId,
+          dataSessionId: data.session_id
+        }
+      });
+      // #endregion
       return null;
     }
-    if (expectedSessionId !== undefined && data.session_id !== expectedSessionId) return null;
+    if (expectedSessionId !== undefined && data.session_id !== expectedSessionId) {
+      // #region debug-point B:extract-session-filter
+      reportDbg({
+        hypothesisId: 'B',
+        location: 'renderer/index.tsx:63',
+        msg: '[DEBUG] extractCdpMessage filtered by session identity',
+        data: {
+          expectedClientId,
+          dataClientId: data.client_id,
+          sender: socketEvent.data?.sender,
+          expectedSessionId,
+          dataSessionId: data.session_id
+        }
+      });
+      // #endregion
+      return null;
+    }
     let message = data.message;
     if (message === undefined) {
       message = data;
@@ -62,48 +104,237 @@ export default definePlugin<AIAssistantBridgeType>((context) => {
       try {
         message = JSON.parse(message);
       } catch {
+        // #region debug-point B:extract-json-parse
+        reportDbg({
+          hypothesisId: 'B',
+          location: 'renderer/index.tsx:78',
+          msg: '[DEBUG] extractCdpMessage failed to parse message json',
+          data: {
+            expectedClientId,
+            expectedSessionId,
+            rawType: typeof data.message,
+            rawPreview: String(data.message).slice(0, 300)
+          }
+        });
+        // #endregion
         return null;
       }
     }
     if (!message || typeof message !== 'object') return null;
+    if ((message as any).method?.startsWith?.('Debugger.')) {
+      // #region debug-point B:extract-debugger-method
+      reportDbg({
+        hypothesisId: 'B',
+        location: 'renderer/index.tsx:91',
+        msg: '[DEBUG] extractCdpMessage accepted debugger event',
+        data: {
+          expectedClientId,
+          expectedSessionId,
+          method: (message as any).method,
+          dataClientId: data.client_id,
+          sender: socketEvent.data?.sender,
+          dataSessionId: data.session_id
+        }
+      });
+      // #endregion
+    }
     return { method: (message as any).method, params: (message as any).params, sessionId: data.session_id };
   };
 
   const listScripts = async (driver: any, clientId: number, sessionId: number) => {
-    await driver.sendCustomMessageAsync({
-      type: 'CDP',
-      clientId,
-      sessionId,
-      params: { method: 'Debugger.enable', params: {} }
-    });
-
     const scripts: Array<{ scriptId: string; url?: string }> = [];
+    const seenScriptIds = new Set<string>();
     let lastHit = Date.now();
     const start = Date.now();
+    let reloadAttempted = false;
 
-    const listener = (socketEvent: any) => {
-      const msg = extractCdpMessage(socketEvent, clientId, sessionId);
-      if (msg?.method === 'Debugger.scriptParsed' && msg.params?.scriptId) {
-        scripts.push({ scriptId: String(msg.params.scriptId), url: msg.params.url });
-        lastHit = Date.now();
-      }
-    };
-
-    await driver.on(ERemoteDebugDriverExternalEvent.All, listener);
-    try {
-      const idleTimeoutMs = 200;
-      const maxTotalMs = 2000;
-      while (Date.now() - start < maxTotalMs) {
+    const waitForScriptParsed = async (maxTotalMs: number) => {
+      const waitStart = Date.now();
+      const idleTimeoutMs = 500;
+      while (Date.now() - waitStart < maxTotalMs) {
         await sleep(50);
         if (scripts.length > 0 && Date.now() - lastHit > idleTimeoutMs) {
           break;
         }
       }
+    };
+
+    // #region debug-point A:listScripts-start
+    reportDbg({
+      hypothesisId: 'A',
+      location: 'renderer/index.tsx:107',
+      msg: '[DEBUG] listScripts started',
+      data: { clientId, sessionId }
+    });
+    // #endregion
+
+    const listener = (socketEvent: any) => {
+      if (socketEvent?.event === SocketEvents.Customized && socketEvent?.data?.type === 'CDP') {
+        // #region debug-point C:listScripts-raw-event
+        reportDbg({
+          hypothesisId: 'C',
+          location: 'renderer/index.tsx:117',
+          msg: '[DEBUG] listScripts saw raw customized CDP event',
+          data: {
+            event: socketEvent?.event,
+            sender: socketEvent?.data?.sender,
+            dataClientId: socketEvent?.data?.data?.client_id,
+            dataSessionId: socketEvent?.data?.data?.session_id,
+            messageType: typeof socketEvent?.data?.data?.message
+          }
+        });
+        // #endregion
+      }
+      const msg = extractCdpMessage(socketEvent, clientId, sessionId);
+      if (msg?.method === 'Debugger.scriptParsed' && msg.params?.scriptId) {
+        const scriptId = String(msg.params.scriptId);
+        if (seenScriptIds.has(scriptId)) {
+          return;
+        }
+        seenScriptIds.add(scriptId);
+        scripts.push({ scriptId, url: msg.params.url });
+        lastHit = Date.now();
+        // #region debug-point A:listScripts-scriptParsed
+        reportDbg({
+          hypothesisId: 'A',
+          location: 'renderer/index.tsx:133',
+          msg: '[DEBUG] listScripts captured Debugger.scriptParsed',
+          data: {
+            clientId,
+            sessionId,
+            scriptId,
+            url: msg.params.url,
+            totalScripts: scripts.length
+          }
+        });
+        // #endregion
+      }
+    };
+
+    await driver.on(ERemoteDebugDriverExternalEvent.All, listener);
+    try {
+      // #region debug-point D:listScripts-before-enable
+      reportDbg({
+        hypothesisId: 'D',
+        location: 'renderer/index.tsx:149',
+        msg: '[DEBUG] listScripts sending Debugger.enable',
+        data: { clientId, sessionId }
+      });
+      // #endregion
+      const enableResult = await driver.sendCustomMessageAsync({
+        type: 'CDP',
+        clientId,
+        sessionId,
+        params: { method: 'Debugger.enable', params: {} }
+      });
+      // #region debug-point D:listScripts-enable-result
+      reportDbg({
+        hypothesisId: 'D',
+        location: 'renderer/index.tsx:160',
+        msg: '[DEBUG] listScripts received Debugger.enable result',
+        data: {
+          clientId,
+          sessionId,
+          resultType: typeof enableResult,
+          resultKeys: enableResult && typeof enableResult === 'object' ? Object.keys(enableResult).slice(0, 10) : [],
+          resultPreview: (() => {
+            try {
+              return JSON.stringify(enableResult).slice(0, 500);
+            } catch {
+              return String(enableResult);
+            }
+          })()
+        }
+      });
+      // #endregion
+
+      await waitForScriptParsed(3000);
+
+      if (scripts.length === 0) {
+        reloadAttempted = true;
+        // #region debug-point A:listScripts-reload-retry
+        reportDbg({
+          hypothesisId: 'A',
+          location: 'renderer/index.tsx:171',
+          msg: '[DEBUG] listScripts retrying once with internal Page.reload',
+          data: {
+            clientId,
+            sessionId
+          }
+        });
+        // #endregion
+        const reloadResult = await driver.sendCustomMessageAsync({
+          type: 'CDP',
+          clientId,
+          sessionId,
+          params: { method: 'Page.reload', params: { ignoreCache: true } }
+        });
+        // #region debug-point A:listScripts-reload-result
+        reportDbg({
+          hypothesisId: 'A',
+          location: 'renderer/index.tsx:184',
+          msg: '[DEBUG] listScripts received internal Page.reload result',
+          data: {
+            clientId,
+            sessionId,
+            resultType: typeof reloadResult,
+            resultKeys: reloadResult && typeof reloadResult === 'object' ? Object.keys(reloadResult).slice(0, 10) : [],
+            resultPreview: (() => {
+              try {
+                return JSON.stringify(reloadResult).slice(0, 500);
+              } catch {
+                return String(reloadResult);
+              }
+            })()
+          }
+        });
+        // #endregion
+        lastHit = Date.now();
+        await waitForScriptParsed(3000);
+      }
     } finally {
       driver.off(ERemoteDebugDriverExternalEvent.All, listener);
     }
 
-    return scripts;
+    if (scripts.length === 0) {
+      // #region debug-point A:listScripts-empty
+      reportDbg({
+        hypothesisId: 'A',
+        location: 'renderer/index.tsx:184',
+        msg: '[DEBUG] listScripts finished without scriptParsed events',
+        data: {
+          clientId,
+          sessionId,
+          elapsedMs: Date.now() - start,
+          reloadAttempted
+        }
+      });
+      // #endregion
+      return {
+        scripts: [],
+        note: reloadAttempted
+          ? 'No Debugger.scriptParsed events were captured for the current clientId/sessionId, even after one internal Page.reload retry. This does not necessarily mean the session is invalid. Do not call Page.reload again; verify the current target context instead.'
+          : 'No Debugger.scriptParsed events were captured for the current clientId/sessionId within the timeout window. The tool has not retried yet.'
+      };
+    }
+
+    // #region debug-point A:listScripts-success
+    reportDbg({
+      hypothesisId: 'A',
+      location: 'renderer/index.tsx:199',
+      msg: '[DEBUG] listScripts finished with scripts',
+      data: {
+        clientId,
+        sessionId,
+        totalScripts: scripts.length,
+        reloadAttempted
+      }
+    });
+    // #endregion
+    return {
+      scripts,
+      reloadAttempted
+    };
   };
 
   const listConsole = async (
@@ -287,6 +518,39 @@ export default definePlugin<AIAssistantBridgeType>((context) => {
         // #endregion debug-point
         return sessions;
       }
+      case 'Device.getActiveTarget': {
+        const store = context.getStore(context.useConnection);
+        const selectedDevice = store?.selectedDevice;
+        const deviceList = store?.deviceList ?? [];
+        const deviceInfoMap = store?.deviceInfoMap ?? {};
+        const clientIdNum =
+          toClientIdNumber(params.clientId) ??
+          toClientIdNumber(params.client_id) ??
+          toClientIdNumber(selectedDevice?.clientId) ??
+          toClientIdNumber(driver.getSelectClientId?.());
+        const explicitSessionId =
+          normalizeParams(params).sessionId ??
+          normalizeParams(params).session_id ??
+          driver.getSelectSessionId?.();
+        const deviceInfo = clientIdNum !== undefined ? deviceInfoMap?.[clientIdNum] : undefined;
+        const sessions = Array.isArray(deviceInfo?.sessions) ? deviceInfo.sessions : [];
+        const selectedSession =
+          explicitSessionId !== undefined
+            ? sessions.find((session: any) => session?.session_id === explicitSessionId) || deviceInfo?.selectedSession
+            : deviceInfo?.selectedSession;
+        const device =
+          clientIdNum !== undefined
+            ? deviceList.find((item: any) => item?.clientId === clientIdNum) || (selectedDevice?.clientId === clientIdNum ? selectedDevice : undefined)
+            : selectedDevice;
+
+        return {
+          clientId: clientIdNum,
+          sessionId: selectedSession?.session_id,
+          device,
+          session: selectedSession,
+          sessions
+        };
+      }
       case 'Device.openPage': {
         const clientIdNum =
           toClientIdNumber(params.clientId) ??
@@ -368,6 +632,16 @@ export default definePlugin<AIAssistantBridgeType>((context) => {
       });
       return result;
     } catch (error) {
+      reportDbg({
+        hypothesisId: 'H2',
+        msg: 'EXECUTE_CDP_COMMAND.failed',
+        data: {
+          type,
+          method,
+          paramsKeys: params ? Object.keys(params) : [],
+          error: error instanceof Error ? error.message : String(error)
+        }
+      });
       console.error('[AI Assistant] CDP Command Failed:', error);
       throw error;
     }

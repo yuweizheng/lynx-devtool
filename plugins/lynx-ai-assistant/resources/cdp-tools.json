@@ -309,7 +309,7 @@
   },
   {
     "name": "Debugger_listScripts",
-    "description": "List all parsed scripts. If no scripts found, it means that the page is opened before the DevTool connected. Use `Page_reload` to reload the page and get the scripts again.",
+    "description": "List parsed scripts observed for the current clientId/sessionId after enabling the Debugger domain. If no `Debugger.scriptParsed` events arrive initially, this tool performs at most one internal `Page_reload` retry within the same call. If the result is still empty after that retry, do not call `Page_reload` again; verify the current target context instead.",
     "inputSchema": {
       "type": "object",
       "properties": {
